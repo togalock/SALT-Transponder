@@ -32,7 +32,8 @@ class EWMF_RadialD:
     @classmethod
     def certainty_by_dt(cls, a, dt):
         M = dt * cls.INTERVAL_MS_I
-        A = a / (M * M)
+        A = a * -(M - 1) * (M - 1) + 1
+        A = max(0, min(a, A))
         return (M, A)
         
     def push(r = None, a = None, t = None, dt = None):
