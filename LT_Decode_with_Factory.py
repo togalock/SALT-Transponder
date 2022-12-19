@@ -1,9 +1,8 @@
-def chop_iter(_iter, chunk_sizes, direct_singles = False):
-    if isinstance(chunk_sizes, int):
-        return (next(_iter) for _ in range(chunk_sizes))
-    return (tuple(next(_iter) for _ in range(chunk))
-            if chunk > 1 or not direct_singles else next(_iter)
-            for chunk in chunk_sizes)
+def chop_iter(_iter, chunk_sizes):
+    return tuple(
+        tuple(next(_iter) for _ in range(chunk_size))
+        for chunk_size in chunk_sizes)
+        
 
 class LT_Loc:
     CHUNKS = (3, 2, 1, 1, 2)
@@ -33,8 +32,8 @@ class LT_Message:
         
     @classmethod
     def from_iter(cls, _iter):
-        _len = int.from_bytes(chop_iter(_iter, cls.CHUNKS[0]), "little")
-        data = tuple(chop_iter(_iter, _len))
+        _len = int.from_bytes(chop_iter(_iter, cls.CHUNKS)[0], "little")
+        data = tuple(chop_iter(_iter, (_len, ))[0])
         return cls(data, _len)
 
 class LT_Ident:
@@ -58,30 +57,35 @@ class LT_Ident:
         return cls(ident, role)
 
 class LT_Locs:
+    header_chunks = (1, 1, 2, 1, 1, 4, 4, 4, 2, 1)
+    
     def __init__(self, from_node, of_time, vcc, n_nodes, data):
         self.from_node, self.of_time, self.vcc, self.n_nodes, self.data = (
             from_node, of_time, vcc, n_nodes, data)
 
+    @classmethod
+    def bytes_frame_size(cls, _bytes):
+        if len(_bytes) < sum(cls.header_chunks[:3]): return None
+        _len = int.from_bytes(_bytes[2:4:], "little")
+        return _len
+    
     @staticmethod
-    def iter_is_valid(_iter):
+    def bytes_is_valid(_bytes):
         sum_v, last_byte = 0, 0
         uint8_max = (1 << 8)
-        for b in _iter:
+        for b in _bytes:
             b = int(b)
             last_byte = b
             sum_v = (sum_v + b) % uint8_max
         else:
             return last_byte == (sum_v + uint8_max - last_byte) % uint8_max
-        
     
     @classmethod
-    def from_iter(cls, _iter):
-        header_chunks = (1, 1, 2, 1, 1, 4, 4, 4, 2, 1)
-        
+    def from_iter(cls, _iter):        
         (header, mark, _len,
         role, ident,
         local_time, system_time, _,
-        vcc, n_nodes) = chop_iter(_iter, header_chunks)
+        vcc, n_nodes) = chop_iter(_iter, cls.header_chunks)
 
         assert (header[0] == 0x55) and (mark[0] == 0x07)
         
@@ -109,14 +113,22 @@ class LT_Locs:
 
 
 class LT_Messages:
+    header_chunks = (1, 1, 2, 1, 1, 4, 1)
+    
     def __init__(self, from_node, n_nodes, data):
         self.from_node, self.n_nodes, self.data = (from_node, n_nodes, data)
 
+    @classmethod
+    def bytes_frame_size(cls, _bytes):
+        if len(_bytes) < sum(cls.header_chunks[:3]): return None
+        _len = int.from_bytes(_bytes[2:4:], "little")
+        return _len
+    
     @staticmethod
-    def iter_is_valid(_iter):
+    def bytes_is_valid(_bytes):
         sum_v, last_byte = 0, 0
         uint8_max = (1 << 8)
-        for b in _iter:
+        for b in _bytes:
             b = int(b)
             last_byte = b
             sum_v = (sum_v + b) % uint8_max
@@ -125,10 +137,8 @@ class LT_Messages:
 
     @classmethod
     def from_iter(cls, _iter):
-        header_chunks = (1, 1, 2, 1, 1, 4, 1)
-
         (header, mark, _len,
-         role, ident, _, n_nodes) = chop_iter(_iter, header_chunks)
+         role, ident, _, n_nodes) = chop_iter(_iter, cls.header_chunks)
 
         assert (header[0] == 0x55) and (mark[0] == 0x02)
 
@@ -152,12 +162,12 @@ class LT_Messages:
 
 def chain(*iters):
     for _iter in iters:
-        yield from _iter
+        for item in _iter:
+            yield item
 
 def create_LTFrame(_iter):
     header_chunks = (1, 1)
     (header, mark) = chop_iter(_iter, header_chunks)
-    
     assert (header[0] == 0x55)
 
     mark_handlers = {0x02: LT_Messages.from_iter, 0x07: LT_Locs.from_iter}
@@ -165,20 +175,47 @@ def create_LTFrame(_iter):
     
     return mark_handler(chain(header, mark, _iter))
 
+def poll_LTFrame(buffer):
+    header_chunks = (1, 1, 2)
+    if len(buffer) < sum(header_chunks): return None
+
+    buffer_copy = iter(buffer)
+    (header, mark) = chop_iter(buffer_copy, header_chunks[:-1])
+    assert (header[0] == 0x55)
+    
+    length_handlers = {0x02: LT_Messages.bytes_frame_size,
+                       0x07: LT_Locs.bytes_frame_size}
+    length_handler = length_handlers[mark[0]]
+    _len = length_handler(buffer)
+
+    if _len is None: return None
+    if len(buffer) < _len: return False
+    
+    return (create_LTFrame(iter(buffer[:_len:])), _len)
+    
+
 def test():
     #UM Example 6.1.3.1
     SAMPLE_LOC_RAW = b'\x55\x07\x42\x00\x02\x00\xbe\x73\x02\x00\x00\x00\x00\x00\x00\x00\xf1\x06\xef\x12\x04\x01\x00\xff\x02\x00\x22\x0b\xa3\x9f\x9e\x00\x01\x01\x02\x03\x00\xad\x00\xa4\x9f\x00\x00\x01\x02\xec\x03\x00\xcb\x03\xa5\xa0\x00\x00\x01\x03\x88\x05\x00\x99\xec\xa3\xa0\x00\x00\x33'
-    print(LT_Locs.iter_is_valid(iter(SAMPLE_LOC_RAW)))
+    print(LT_Locs.bytes_is_valid(SAMPLE_LOC_RAW))
     print(LT_Locs.from_iter(iter(SAMPLE_LOC_RAW)).__dict__)
 
     #UM Example 6.1.3.4
     SAMPLE_MSG_RAW = b'\x55\x02\x19\x00\x01\x00\xef\x72\x02\x32\x01\x02\x00\x09\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\x0f'
-    print(LT_Messages.iter_is_valid(iter(SAMPLE_MSG_RAW)))
+    print(LT_Messages.bytes_is_valid(iter(SAMPLE_MSG_RAW)))
     print(LT_Messages.from_iter(iter(SAMPLE_MSG_RAW)).__dict__)
 
     # Determining
     print(create_LTFrame(iter(SAMPLE_LOC_RAW)))
     print(create_LTFrame(iter(SAMPLE_MSG_RAW)))
+
+    # Overpolling
+    buffer = tuple(SAMPLE_LOC_RAW) + tuple(SAMPLE_MSG_RAW)
+    for _ in range(3):
+        frame = poll_LTFrame(buffer)
+        if frame:
+            buffer = buffer[frame[1]::]
+        print(frame)
 
 if __name__ == "__main__":
     test()
