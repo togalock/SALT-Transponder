@@ -165,34 +165,6 @@ def create_LTFrame(_iter):
     
     return mark_handler(chain(header, mark, _iter))
 
-def test_serial_stream():
-    RAW_DATA = iter(b'\x55\x07\x42\x00\x02\x00\xbe\x73\x02\x00\x00\x00\x00\x00\x00\x00\xf1\x06\xef\x12\x04\x01\x00\xff\x02\x00\x22\x0b\xa3\x9f\x9e\x00\x01\x01\x02\x03\x00\xad\x00\xa4\x9f\x00\x00\x01\x02\xec\x03\x00\xcb\x03\xa5\xa0\x00\x00\x01\x03\x88\x05\x00\x99\xec\xa3\xa0\x00\x00\x33\x55\x02\x19\x00\x01\x00\xef\x72\x02\x32\x01\x02\x00\x09\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\x0f')
-    i, data_out = 0, []
-    while True:
-        try:
-            data_out.append(next(RAW_DATA))
-            i += 1
-            if i >= 21:
-                yield data_out
-                i, data_out = 0, []
-        except StopIteration:
-            yield data_out
-            break
-
-def iterize_stream(read_function):
-    while True:
-        buffer = iter(read_function())
-        yield from buffer
-        
-def test_iterate():
-    serial_stream = test_serial_stream()
-    
-    def read():
-        return next(serial_stream)
-    
-    while True:
-        print(create_LTFrame(iterize_stream(read)))
-    
 def test():
     #UM Example 6.1.3.1
     SAMPLE_LOC_RAW = b'\x55\x07\x42\x00\x02\x00\xbe\x73\x02\x00\x00\x00\x00\x00\x00\x00\xf1\x06\xef\x12\x04\x01\x00\xff\x02\x00\x22\x0b\xa3\x9f\x9e\x00\x01\x01\x02\x03\x00\xad\x00\xa4\x9f\x00\x00\x01\x02\xec\x03\x00\xcb\x03\xa5\xa0\x00\x00\x01\x03\x88\x05\x00\x99\xec\xa3\xa0\x00\x00\x33'
@@ -209,4 +181,4 @@ def test():
     print(create_LTFrame(iter(SAMPLE_MSG_RAW)))
 
 if __name__ == "__main__":
-    test_iterate()
+    test()
