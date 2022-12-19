@@ -29,7 +29,7 @@ def onclick_tag(x, y):
         click_cooldown += 100
         r, a = EWMF_RadialD.xy_to_ra(x, y)
         if tag_radial is None \
-           or abs(tag_radial.r.v - r) >= 150:
+           or abs(tag_radial.r.v - r) >= 200:
             tag_radial = EWMF_RadialD(r, a)
             fresh_for = 0
 
