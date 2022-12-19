@@ -26,12 +26,10 @@ def click_tick():
 def onclick_tag(x, y):
     global tag_radial, fresh_for, click_cooldown
     if click_cooldown <= 0:
-        click_cooldown += 800
+        click_cooldown += 100
         r, a = EWMF_RadialD.xy_to_ra(x, y)
-        print(x, y, r, a)
         if tag_radial is None \
-           or abs(tag_radial.r.v - r) >= 75  \
-           or abs(tag_radial.a.v - a) >= 10:
+           or abs(tag_radial.r.v - r) >= 150:
             tag_radial = EWMF_RadialD(r, a)
             fresh_for = 0
 
@@ -67,8 +65,6 @@ trend_dot.hideturtle()
 
 def draw_tag():
     global tag_radial, fresh_for
-    t.update()
-    
     if tag_radial:
         x0, y0 = EWMF_RadialD.ra_to_xy(tag_radial.r.v, tag_radial.a.v)
         
@@ -82,14 +78,16 @@ def draw_tag():
         trend_dot.up()
         trend_dot.goto(x0, y0)
         trend_dot.down()
-        for (r, a) in tag_radial.trend_iter():
+        for (r, a) in tag_radial.trend_iter(2000, 10):
             x, y = EWMF_RadialD.ra_to_xy(r, a)
             trend_dot.goto(x, y)
 
     else:
         tag_dot.clear()
         trend_dot.clear()
-            
+
+    t.update()
+
 screen = t.Screen()
 t.setup(800, 600)
 setInterval(tag_tick, 100)
