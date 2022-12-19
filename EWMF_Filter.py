@@ -44,7 +44,7 @@ class EWMF_RadialD:
         a = cls.RAD * atan(y / x)
 
         if x < 0:
-            a = a + 180
+            r = -r
         
         return (r, a)
 
@@ -69,6 +69,7 @@ class EWMF_RadialD:
         self.a.push(a, dr_certainty)
 
         self.dr.push((r - r0) / dt, ddr_certainty)
+        
         self.da.push((a - a0) / dt, ddr_certainty) 
     
     def trend_iter(self, t_ms = 100, n = 10):
