@@ -20,17 +20,17 @@ class EWMFilter:
 
 class EWMF_RadialD:
     D_A, DD_A = 0.3, 0.2
-    HISTORY_SIZE = 50
-    INTERVAL_MS, INTERVAL_MS_I = 400, 0.0025
+    HISTORY_SIZE = 0
+    INTERVAL_MS, INTERVAL_MS_I = 100, 0.0025
     PI_INV = 0.31830988
         
     def __init__(self, r, a, dr = 0, da = 0, t = 0):
         self.r, self.a = (
-            EWMFilter(D_A, r, HISTORY_SIZE),
-            EWMFilter(D_A, a, HISTORY_SIZE))
+            EWMFilter(self.D_A, r, self.HISTORY_SIZE),
+            EWMFilter(self.D_A, a, self.HISTORY_SIZE))
         self.dr, self.da = (
-            EWMFilter(DD_A, dr, HISTORY_SIZE),
-            EWMFilter(DD_A, da))
+            EWMFilter(self.DD_A, dr, self.HISTORY_SIZE),
+            EWMFilter(self.DD_A, da, self.HISTORY_SIZE))
         self.t = t
 
     @classmethod
@@ -51,20 +51,21 @@ class EWMF_RadialD:
         A = max(0, min(a, A))
         return (M, A)
         
-    def push(r = None, a = None, t = None, dt = None):
+    def push(self, r = None, a = None, t = None, dt = None):
         if dt is None:
             if t is None: return False
             (self.t, dt) = (t, t - self.t)
 
-        _, DR_M_I, dr_certainty = self.certainty_by_dt(D_A, dt)
-        _, DDR_M_I, ddr_certainty = self.certainty_by_dt(DD_A, dt)
+        _, dr_certainty = self.certainty_by_dt(self.D_A, dt)
+        _, ddr_certainty = self.certainty_by_dt(self.DD_A, dt)
 
+        r, a = self.r.v if r is None else r, self.a.v if a is None else a
         r0, a0 = self.r.v, self.a.v
-        self.r.push(v, dr_certainty)
+        self.r.push(r, dr_certainty)
         self.a.push(a, dr_certainty)
 
         self.dr.push((r - r0) / dt, ddr_certainty)
-        self.da.push((a - a0) / dt, ddr_certainty)   
+        self.da.push((a - a0) / dt, ddr_certainty) 
     
     def trend_iter(self, t_ms = 100, n = 10):
         r, a = self.r.v, self.a.v
