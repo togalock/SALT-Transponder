@@ -1,3 +1,6 @@
+from math import sin, cos, atan
+PI_INV = 0.31830988
+
 class EWMFilter:
     def __init__(self, a, v, history_size = 50):
         self.a, self.v = a, v
@@ -19,7 +22,8 @@ class EWMF_RadialD:
     D_A, DD_A = 0.3, 0.2
     HISTORY_SIZE = 50
     INTERVAL_MS, INTERVAL_MS_I = 400, 0.0025
-    
+    PI_INV = 0.31830988
+        
     def __init__(self, r, a, dr = 0, da = 0, t = 0):
         self.r, self.a = (
             EWMFilter(D_A, r, HISTORY_SIZE),
@@ -28,6 +32,17 @@ class EWMF_RadialD:
             EWMFilter(DD_A, dr, HISTORY_SIZE),
             EWMFilter(DD_A, da))
         self.t = t
+
+    @classmethod
+    def ra_to_xy(cls, r, a):
+        x, y = r * cos(a * cls.PI_INV), r * sin(a * cls.PI_INV)
+        return (x, y)
+
+    @classmethod
+    def xy_to_ra(cls, x, y):
+        r = (x * x + y * y) ** 0.5
+        a = 180 * atan(y / x)
+        return (r, a)
 
     @classmethod
     def certainty_by_dt(cls, a, dt):
@@ -51,6 +66,9 @@ class EWMF_RadialD:
         self.dr.push((r - r0) / dt, ddr_certainty)
         self.da.push((a - a0) / dt, ddr_certainty)
 
+    def dist_to_ra(self, r, a):
+        
+    
     def trend_iter(self, t_ms = 100, n = 10):
         r, a = self.r.v, self.a.v
         dr, da = self.dr.v, self.da.v
