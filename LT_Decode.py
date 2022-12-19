@@ -33,7 +33,7 @@ class LT_Message:
     @classmethod
     def from_iter(cls, _iter):
         _len = int.from_bytes(chop_iter(_iter, cls.CHUNKS[0]), "little")
-        data = tuple(chop_iter(_iter, _len))
+        data = tuple(chop_iter(_iter, _len - cls.CHUNKS[0]))
         return cls(data, _len)
 
 class LT_Ident:
@@ -149,7 +149,7 @@ class LT_Messages:
 
 def create_LTFrame(_iter):
     header_chunks = (1, 1)
-    (header, mark) = chop_iter(_ister, header_chunks)
+    (header, mark) = chop_iter(_iter, header_chunks)
     
     assert (header[0] == 0x55)
 
@@ -175,3 +175,6 @@ def test():
 
     print(create_LTFrame(iter(SAMPLE_LOC_RAW)))
     print(create_LTFrame(iter(SAMPLE_MSG_RAW)))
+
+if __name__ == "__main__":
+    test()
