@@ -1,3 +1,8 @@
+import serial
+from time import sleep
+
+ser = serial. Serial ("/dev/ttyS0", 115200)
+
 def chop_iter(_iter, chunk_sizes):
     return tuple(
         tuple(next(_iter) for _ in range(chunk_size))
@@ -217,5 +222,27 @@ def test():
             buffer = buffer[frame[1]::]
         print(frame)
 
-if __name__ == "__main__":
-    test()
+#if __name__ == "__main__":
+#    test()
+
+buffer = tuple()
+test()
+while True:
+    received_data = ser.read()
+    sleep(0.03)
+    data_left = ser.inWaiting()
+    received_data += ser.read(data_left)
+    print(received_data)
+    translated_data = iter(received_data)
+    #print(create_LTFrame(translated_data))
+    #print(LT_Locs.bytes_is_valid(translated_data))
+    #print(LT_Locs.from_iter(translated_data).__dict__)
+    buffer = buffer + tuple(received_data)
+    print(buffer)
+    for _ in range(3):
+        frame = poll_LTFrame(buffer)
+        if frame:
+            buffer = buffer[frame[1]::]
+        print(frame)
+        print(create_LTFrame(translated_data))
+        print(LT_Locs.from_iter(translated_data).__dict__)
