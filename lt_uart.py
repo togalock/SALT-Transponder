@@ -16,9 +16,11 @@ class LT_UART:
         if not new_data: return None
         
         if len(new_data) == 1:
-            self.buffer.append(new_data)
+            new_byte = new_data[0]
+            self.buffer.append(new_byte)
         else:
-            self.buffer.extend(new_data)
+            for b in new_data:
+                self.buffer.append(int(b))
         
         return len(new_data)
             
@@ -28,9 +30,13 @@ class LT_UART:
 
     def poll_frame(self, poll_first = True):
         if poll_first: self.poll()
-        print(self.buffer)
         frame = self.get_frame()
         if frame:
             self.buffer = self.buffer[frame[1]::]
+        return frame
 
 lt_uart = LT_UART("/dev/ttyS0", 115200)
+
+while True:
+    frame = lt_uart.poll_frame()
+    if frame: print(frame[0].__dict__)
