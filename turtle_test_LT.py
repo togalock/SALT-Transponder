@@ -34,9 +34,10 @@ def tag_tick():
     if last_frame is None:
         last_lt_loc = None
     else:
-        last_lt_loc = last_frame.data[0][1] \
-                      if len(last_frame.data) else None
-        last_lt_time = last_frame.of_time[0]
+        last_lt_loc = last_frame[0].data[0][1] \
+                      if last_frame and len(last_frame[0].data) \
+                      else None
+        last_lt_time = last_frame[0].of_time[0]
     
     if disappear_timeout >= 2500:
         tag_radial = None
