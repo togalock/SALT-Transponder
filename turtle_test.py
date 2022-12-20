@@ -53,11 +53,15 @@ def tag_tick():
         tag_radial, fresh_for = None, None
 
 # Setup
+t.tracer(0)
+
+# Machine
 m_arrow = t.Turtle()
 m_arrow.speed(0)
 m_arrow.left(90)
 m_arrow.shapesize(2, 2)
 
+# Tag
 tag_dot = t.Turtle()
 tag_dot.speed(0)
 tag_dot.color("brown")
@@ -95,14 +99,27 @@ def draw_tag():
 
     t.update()
 
+# Circles
+warning_circle = t.Turtle()
+warning_circle.speed(0)
+warning_circle.hideturtle()
+
+warning_circle.color("yellow")
+warning_circle.dot(300)
+warning_circle.dot(300 - 3, t.bgcolor())
+
+warning_circle.color("red")
+warning_circle.dot(150)
+warning_circle.dot(150 - 3, t.bgcolor())
+
 # Main
 screen = t.Screen()
 t.setup(800, 600)
+t.update()
+
 setInterval(tag_tick, 100)
 setInterval(draw_tag, 100)
 setInterval(click_tick, 100)
 screen.onclick(onclick_tag)
-
-t.tracer(0)
 
 t.mainloop()
