@@ -69,7 +69,7 @@ class LT_Locs:
             from_node, of_time, vcc, n_nodes, data)
 
     @classmethod
-    def bytes_frame_size(cls, _bytes):
+    def bytes_frame_size(self, cls, _bytes):
         if len(_bytes) < sum(cls.header_chunks[:3]): return None
         _len = int.from_bytes(_bytes[2:4:], "little")
         return _len
@@ -86,7 +86,7 @@ class LT_Locs:
             return last_byte == (sum_v + uint8_max - last_byte) % uint8_max
     
     @classmethod
-    def from_iter(cls, _iter):        
+    def from_iter(cls, _iter):
         (header, mark, _len,
         role, ident,
         local_time, system_time, _,
@@ -105,7 +105,6 @@ class LT_Locs:
         of_time = (local_time, system_time)
 
         data = []
-        
         for _ in range(n_nodes):
             ident = LT_Ident.from_iter(_iter)
             loc = LT_Loc.from_iter(_iter)
@@ -225,24 +224,18 @@ def test():
 #if __name__ == "__main__":
 #    test()
 
-buffer = tuple()
-test()
 while True:
     received_data = ser.read()
-    sleep(0.03)
-    data_left = ser.inWaiting()
-    received_data += ser.read(data_left)
-    print(received_data)
-    translated_data = iter(received_data)
-    #print(create_LTFrame(translated_data))
-    #print(LT_Locs.bytes_is_valid(translated_data))
-    #print(LT_Locs.from_iter(translated_data).__dict__)
-    buffer = buffer + tuple(received_data)
-    print(buffer)
-    for _ in range(3):
-        frame = poll_LTFrame(buffer)
-        if frame:
-            buffer = buffer[frame[1]::]
-        print(frame)
-        print(create_LTFrame(translated_data))
-        print(LT_Locs.from_iter(translated_data).__dict__)
+    if received_data == b'\x55':
+        received_data += ser.read()
+        frame_length_raw = ser.read()
+        frame_length_raw += ser.read()
+        frame_length = int.from_bytes(frame_length_raw, "little")
+        received_data += frame_length_raw
+        received_data += ser.read(frame_length - 4)
+        print(received_data)
+    translated_data_1 = iter(received_data)
+    translated_data_2 = iter(received_data)
+    print(LT_Locs.bytes_is_valid(translated_data_1))
+    print(LT_Locs.from_iter(translated_data_2).__dict__)
+    
