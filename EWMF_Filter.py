@@ -24,7 +24,8 @@ class EWMF_RadialD:
     INTERVAL_MS, INTERVAL_MS_I = 100, 0.01
     RAD, RAD_INV = 57.29578, 0.0174533
         
-    def __init__(self, r, a, dr = 0, da = 0, t = 0):
+    def __init__(self, r, a, dr = 0, da = 0, t = 0,
+                 interval_ms = 100):
         self.r, self.a = (
             EWMFilter(self.D_A, r, self.HISTORY_SIZE),
             EWMFilter(self.D_A, a, self.HISTORY_SIZE))
@@ -32,6 +33,10 @@ class EWMF_RadialD:
             EWMFilter(self.DD_A, dr, self.HISTORY_SIZE),
             EWMFilter(self.DD_A, da, self.HISTORY_SIZE))
         self.t = t
+
+        if interval_ms:
+            self.INTERVAL_MS = interval_ms
+            self.INTERVAL_MS_I = 1 / interval_ms
 
     @classmethod
     def ra_to_xy(cls, r, a):

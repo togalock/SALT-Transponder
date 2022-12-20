@@ -3,12 +3,10 @@ from time import sleep
 import LT_Decode_with_Factory as LT
 
 class LT_UART:
-    TIMEOUT_MS = 100
-
-    def __init__(self, addr, rate):
+    def __init__(self, addr, rate, timeout = 100):
         self.addr, self.rate = addr, rate
         self.f = serial.Serial(addr, rate, 
-            timeout = self.TIMEOUT_MS)
+            timeout = timeout)
         self.buffer = []
 
     def poll(self, size = 1):
@@ -35,8 +33,4 @@ class LT_UART:
             self.buffer = self.buffer[frame[1]::]
         return frame
 
-lt_uart = LT_UART("/dev/ttyS0", 115200)
-
-while True:
-    frame = lt_uart.poll_frame()
-    if frame: print(frame[0].__dict__)
+# lt_uart = LT_UART("/dev/ttyS0", 115200)
