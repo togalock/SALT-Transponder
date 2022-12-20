@@ -28,7 +28,7 @@ tag_radial, disappear_timeout = None, 0
 last_lt_loc, last_lt_time = None, None
 
 def tag_tick():
-    global (tag_radial, disappear_timeout, last_frame, lt_uart)
+    global tag_radial, disappear_timeout, last_frame, lt_uart
     last_frame = lt_uart.poll_frame()
     
     if last_frame is None:
