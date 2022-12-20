@@ -69,7 +69,7 @@ class LT_Locs:
             from_node, of_time, vcc, n_nodes, data)
 
     @classmethod
-    def bytes_frame_size(self, cls, _bytes):
+    def bytes_frame_size(cls, _bytes):
         if len(_bytes) < sum(cls.header_chunks[:3]): return None
         _len = int.from_bytes(_bytes[2:4:], "little")
         return _len
@@ -105,6 +105,7 @@ class LT_Locs:
         of_time = (local_time, system_time)
 
         data = []
+        
         for _ in range(n_nodes):
             ident = LT_Ident.from_iter(_iter)
             loc = LT_Loc.from_iter(_iter)
