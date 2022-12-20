@@ -1,8 +1,3 @@
-import serial
-from time import sleep
-
-ser = serial. Serial ("/dev/ttyS0", 115200)
-
 def chop_iter(_iter, chunk_sizes):
     return tuple(
         tuple(next(_iter) for _ in range(chunk_size))
@@ -222,21 +217,6 @@ def test():
             buffer = buffer[frame[1]::]
         print(frame)
 
-#if __name__ == "__main__":
-#    test()
-
-while True:
-    received_data = ser.read()
-    if received_data == b'\x55':
-        received_data += ser.read()
-        frame_length_raw = ser.read()
-        frame_length_raw += ser.read()
-        frame_length = int.from_bytes(frame_length_raw, "little")
-        received_data += frame_length_raw
-        received_data += ser.read(frame_length - 4)
-        print(received_data)
-    translated_data_1 = iter(received_data)
-    translated_data_2 = iter(received_data)
-    print(LT_Locs.bytes_is_valid(translated_data_1))
-    print(LT_Locs.from_iter(translated_data_2).__dict__)
-    
+if __name__ == "__main__":
+    test()
+   
