@@ -2,6 +2,12 @@ from math import sin, cos, atan
 import turtle as t
 from EWMF_Filter import *
 
+def rotate_m90(x, y):
+    return (-y, x)
+
+def rotate_90(x, y):
+    return (y, -x)
+
 def setTimeout(f, t_ms):
     t.ontimer(f, t_ms)
 
@@ -27,7 +33,7 @@ def onclick_tag(x, y):
     global tag_radial, fresh_for, click_cooldown
     if click_cooldown <= 0:
         click_cooldown += 100
-        r, a = EWMF_RadialD.xy_to_ra(x, y)
+        r, a = EWMF_RadialD.xy_to_ra(*rotate_90(x, y))
         if tag_radial is None \
            or abs(tag_radial.r.v - r) >= 200:
             tag_radial = EWMF_RadialD(r, a)
@@ -49,6 +55,7 @@ def tag_tick():
 # Setup
 m_arrow = t.Turtle()
 m_arrow.speed(0)
+m_arrow.left(90)
 m_arrow.shapesize(2, 2)
 
 tag_dot = t.Turtle()
@@ -67,7 +74,7 @@ def draw_tag():
     global tag_radial, fresh_for
     if tag_radial:
         x0, y0 = EWMF_RadialD.ra_to_xy(tag_radial.r.v, tag_radial.a.v)
-        
+        x0, y0 = rotate_m90(x0, y0)
         tag_dot.clear()
         tag_dot.up()
         tag_dot.goto(x0, y0)
@@ -80,7 +87,7 @@ def draw_tag():
         trend_dot.down()
         for (r, a) in tag_radial.trend_iter(2000, 10):
             x, y = EWMF_RadialD.ra_to_xy(r, a)
-            trend_dot.goto(x, y)
+            trend_dot.goto(*rotate_m90(x, y))
 
     else:
         tag_dot.clear()
@@ -88,6 +95,7 @@ def draw_tag():
 
     t.update()
 
+# Main
 screen = t.Screen()
 t.setup(800, 600)
 setInterval(tag_tick, 100)
@@ -97,7 +105,4 @@ screen.onclick(onclick_tag)
 
 t.tracer(0)
 
-try:
-    t.mainloop()
-except:
-    t.bye()
+t.mainloop()
