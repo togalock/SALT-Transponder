@@ -21,7 +21,7 @@ class EWMFilter:
 class EWMF_RadialD:
     D_A, DD_A = 0.3, 0.2
     HISTORY_SIZE = 0
-    INTERVAL_MS, INTERVAL_MS_I = 100, 0.01
+    INTERVAL_MS, INTERVAL_MS_I = 40, 0.025 
     RAD, RAD_INV = 57.29578, 0.0174533
         
     def __init__(self, r, a, dr = 0, da = 0, t = 0,
