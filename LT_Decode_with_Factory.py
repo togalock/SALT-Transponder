@@ -1,13 +1,17 @@
 def chop_iter(_iter, chunk_sizes):
+    # Chops a iter to a list of chunk sizes
+    # f([1, 2, 3, 4], (1, 2)) -> ((1, ), (2, 3, ))
     return tuple(
         tuple(next(_iter) for _ in range(chunk_size))
         for chunk_size in chunk_sizes)
         
-
 class LT_Loc:
     CHUNKS = (3, 2, 1, 1, 2)
     
     def __init__(self, d, a, fp, rx):
+        # d: distance, a: angle (theta)
+        # fp: First path power (dB)
+        # rx: Average path power (dB)
         self.d, self.a, self.fp, self.rx = d, a, fp, rx
 
     def __repr__(self):

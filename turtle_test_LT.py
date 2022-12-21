@@ -37,12 +37,14 @@ def tag_tick():
     last_frame = None
     
     for _ in range(drop_frame_coolout):
+        # Batch poll, and use the last available frame
         last_frame = lt_uart.poll_frame(160) or last_frame
         
     if not last_frame:
         last_lt_loc = None
     
     else:
+        # Use first data from the only tag
         last_lt_loc = last_frame[0].data[0][1] \
                       if last_frame and len(last_frame[0].data) \
                       else None
@@ -107,6 +109,8 @@ def draw_tag():
     
     if tag_radial:
         x0, y0 = EWMF_RadialD.ra_to_xy(tag_radial.r.v, tag_radial.a.v)
+
+        # Rotate Minus 90 to align theta = 0deg to top
         x0, y0 = rotate_m90(x0, y0)
         tag_dot.clear()
         tag_dot.up()

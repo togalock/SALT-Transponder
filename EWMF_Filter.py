@@ -2,7 +2,10 @@ from math import sin, cos, atan
 PI_INV = 0.31830988
 
 class EWMFilter:
+    # Exponential Weighted Moving Average Filter
     def __init__(self, a, v, history_size = 50):
+        # a: Default Exponential Weight (Alpha)
+        # v: Value (Initial)
         self.a, self.v = a, v
         self.history, self.history_size = [v] * history_size, history_size
 
@@ -12,6 +15,9 @@ class EWMFilter:
         self.history.append(v)
 
     def push(self, v, a = None, n = 1):
+        # a: Override default alpha
+        # n: Repeat n cycles
+        
         if a is None: a = self.a
         self.push_history((v, a, n))
         for _ in range(n):
@@ -19,9 +25,18 @@ class EWMFilter:
         return self.v
 
 class EWMF_RadialD:
+    # D_A: Difference alpha (alpha for x)
+    # DD_A: Diff Diff alpha (alpha for dx/dt)
     D_A, DD_A = 0.3, 0.2
     HISTORY_SIZE = 0
-    INTERVAL_MS, INTERVAL_MS_I = 40, 0.025 
+
+    # Interval: Expected sensor refresh time (T)
+    # Readings taken close to interval is more "trustable"
+    
+    # _I: Inverse (1/N) to speed up computation
+    INTERVAL_MS, INTERVAL_MS_I = 40, 0.025
+
+    # Rad to Deg, Deg to Rad
     RAD, RAD_INV = 57.29578, 0.0174533
         
     def __init__(self, r, a, dr = 0, da = 0, t = 0,
@@ -49,6 +64,9 @@ class EWMF_RadialD:
         a = cls.RAD * atan(y / x)
 
         if x < 0:
+            # tan works within [-90, 90];
+            # Flip r instead of change heading improves \
+            # trend prediction for crossing center
             r = -r
         
         return (r, a)
@@ -56,7 +74,13 @@ class EWMF_RadialD:
     @classmethod
     def certainty_by_dt(cls, a, dt):
         M = dt * cls.INTERVAL_MS_I
+        
+        # Certainty determined by -(x - 1)^2 + 1
+        # to favor readings with dt/dt near 1;
+        
+        # dt/dt < 0 or dt/dt > 2 will be discarded
         A = a * -(M - 1) * (M - 1) + 1
+
         A = max(0, min(a, A))
         return (M, A)
         
