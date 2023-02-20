@@ -1,6 +1,8 @@
 from functools import partial
 
 uint = partial(int.from_bytes, byteorder="little", signed=False)
+
+# Uses chunks of (start, stop); Pre-computes for better performance
 map_bytes = lambda b, chunk_lens: map(lambda chunk: uint(b[chunk[0]:chunk[1]]), chunk_lens)
 
 class LT_Loc:
@@ -116,17 +118,20 @@ class LT_Decoder:
         self.buffer = bytearray(init_bytes)
 
     def poll(self):
+        # Returns: False: Frame malformed; None: Frame incomplete; (Type, Object): 1 decoded frame
         b = self.buffer
+        # Blocks without the header are malformed and should be dropped
+        # Default to look 20 bytes ahead only to allow mainloop to continue
         block_offset, frame_type = b.find(0x55, 0, 21), None
         if block_offset > -1:
             frame_type = b[block_offset + 1]
+            del self.buffer[:block_offset]
         else:
             frame_type = False
             del self.buffer[:20]
         
         lt_frame = None
         if frame_type:
-            del self.buffer[:block_offset]
             if frame_type == 0x02:
                 lt_frame = LT_Messages.from_bytes(b)
             elif frame_type == 0x07:
@@ -136,6 +141,12 @@ class LT_Decoder:
                 
         if lt_frame:
             del self.buffer[:lt_frame._len]
+        # If frame is malformed, then 0x55 is part of missing data
+        # dropping with same criteria as above
+        elif lt_frame is False:
+            del self.buffer[:20]
+        else:
+            pass
             
         return (frame_type, lt_frame)
 
