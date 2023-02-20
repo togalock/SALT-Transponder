@@ -1,0 +1,157 @@
+from functools import partial
+
+uint = partial(int.from_bytes, byteorder="little", signed=False)
+map_bytes = lambda b, chunk_lens: map(lambda chunk: uint(b[chunk[0]:chunk[1]]), chunk_lens)
+
+class LT_Loc:
+    def __init__(self, role, rid, d, a, fp, rx):
+        self.role, self.rid, self.d, self.a, self.fp, self.rx = role, rid, d, a, fp, rx
+
+    def __repr__(self):
+        return "<LTLoc %.2f ∠%.2f (fp=%idB)>" % (self.d / 1000, self.a / 100, self.fp)
+
+    @classmethod
+    def from_bytes(cls, b):
+        if len(b) < 11: return None
+        chunk_lens = ((0, 1), (1, 2), (2, 5), (5, 7), (7, 8), (8, 9), (9, 11))
+        role, rid, d, a, fp, rx, _ = map_bytes(b, chunk_lens)
+        a = ((a >> 15) * (-1 << 16)) + a # From uint16 to int16
+
+        return cls(role, rid, d, a, fp, rx)
+
+
+class LT_Message:
+    def __init__(self, role, rid, _len, data):
+        self.role, self.rid, self._len, self.data = role, rid, _len, data
+
+    def __repr__(self):
+        return "<LTMsg[%i] %s>" % (self._len, self.data[0:20])
+
+    @classmethod
+    def from_bytes(cls, b):
+        if len(b) < 4: return None
+        chunk_lens = ((0, 1), (1, 2), (2, 4))
+        role, rid, _len = map_bytes(b, chunk_lens)
+        if len(b) < _len: return None
+        data = b[5:5 + _len]
+
+        return cls(role, rid, _len, data)
+
+
+class LT_Locs:
+    def __init__(self, _len, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs):
+        self._len, self.role, self.rid, self.local_time, self.sys_time, self.vcc, self.n_nodes, self.lt_locs = \
+                  _len, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs
+
+    @classmethod
+    def from_bytes(cls, b):
+        if len(b) < 21: return None
+        if (b[0] != 0x55) or (b[1] != 0x07): return False
+        
+        chunk_lens = ((0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 10), (10, 14), (14, 18), (18, 20), (20, 21))
+        header, mark, _len, role, rid, local_time, sys_time, _, vcc, n_nodes = map_bytes(b, chunk_lens)
+
+        if len(b) < _len: return None
+        
+        lt_locs = []
+        checksum, CHECKSUM_ENABLED = sum(b[0:21]) & ((1 << 8) - 1), True
+        
+        for i in range(21, 21 + n_nodes * 11, 11):
+            block = b[i:i + 11]
+            lt_loc = LT_Loc.from_bytes(block)
+            if not lt_loc:
+                return lt_loc
+            else:
+                lt_locs.append(lt_loc)
+
+            if CHECKSUM_ENABLED:
+                checksum = (checksum + sum(block)) & ((1 << 8) - 1)
+        
+        if CHECKSUM_ENABLED:
+            if b[_len - 1] != checksum: return False
+
+        return cls(_len, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs)
+
+
+class LT_Messages:
+    def __init__(self, _len, role, rid, n_nodes, lt_messages):
+        self._len, self.role, self.rid, self.n_nodes, self.lt_messages = \
+                   _len, role, rid, n_nodes, lt_messages
+
+    @classmethod
+    def from_bytes(cls, b):
+        if len(b) < 21: return None
+        if (b[0] != 0x55) or (b[1] != 0x02): return False
+
+        chunk_lens = ((0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 10), (10, 11))
+        header, mark, _len, role, rid, _, n_nodes = map_bytes(b, chunk_lens)
+        
+        if len(b) < _len: return None
+
+        lt_messages = []
+        checksum, CHECKSUM_ENABLED = sum(b[0:11]) & ((1 << 8) - 1), True
+        cursor = 11
+
+        for _ in range(n_nodes):
+            block_len = uint(b[cursor + 2:cursor + 4])
+            block = b[cursor:cursor + block_len + 4]
+            lt_message = LT_Message.from_bytes(block)
+            if not lt_message:
+                return lt_message
+            else:
+                lt_messages.append(lt_message)
+                cursor += lt_message._len
+
+            if CHECKSUM_ENABLED:
+                checksum = (checksum + sum(block)) & ((1 << 8) - 1)
+
+        if CHECKSUM_ENABLED:
+            if b[_len - 1] != checksum: return False
+
+        return cls(_len, role, rid, n_nodes, lt_messages)
+
+
+class LT_Decoder:
+    def __init__(self, init_bytes = b''):
+        self.buffer = bytearray(init_bytes)
+
+    def poll(self):
+        b = self.buffer
+        block_offset, frame_type = 0, None
+        for block_offset in range(min(20, len(b) - 1)):
+            if b[block_offset] == 0x55:
+                frame_type = b[block_offset + 1]
+                break
+        else:
+            frame_type = False
+        
+        lt_frame = None
+        if frame_type:
+            del self.buffer[:block_offset]
+            if frame_type == 0x02:
+                lt_frame = LT_Messages.from_bytes(b)
+            elif frame_type == 0x07:
+                lt_frame = LT_Locs.from_bytes(b)
+            else:
+                pass
+                
+        if lt_frame:
+            del self.buffer[:lt_frame._len]
+            
+        return (frame_type, lt_frame)
+
+    def write(self, b):
+        print(b)
+        self.buffer.extend(b)
+
+SAMPLE_LOC_RAW = b'\x55\x07\x42\x00\x02\x00\xbe\x73\x02\x00\x00\x00\x00\x00\x00\x00\xf1\x06\xef\x12\x04\x01\x00\xff\x02\x00\x22\x0b\xa3\x9f\x9e\x00\x01\x01\x02\x03\x00\xad\x00\xa4\x9f\x00\x00\x01\x02\xec\x03\x00\xcb\x03\xa5\xa0\x00\x00\x01\x03\x88\x05\x00\x99\xec\xa3\xa0\x00\x00\x33'
+SAMPLE_MSG_RAW = b'\x55\x02\x19\x00\x01\x00\xef\x72\x02\x32\x01\x02\x00\x09\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\x0f'
+
+ltd = LT_Decoder()
+ltd.write(SAMPLE_LOC_RAW)
+ltd.write(SAMPLE_MSG_RAW)
+
+print(ltd.poll())
+print(ltd.poll())
+print(ltd.poll())
+print(ltd.poll())
