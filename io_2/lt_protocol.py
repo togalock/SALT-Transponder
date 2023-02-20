@@ -117,14 +117,12 @@ class LT_Decoder:
 
     def poll(self):
         b = self.buffer
-        block_offset, frame_type = 0, None
-        for block_offset in range(min(20, len(b) - 1)):
-            if b[block_offset] == 0x55:
-                frame_type = b[block_offset + 1]
-                break
+        block_offset, frame_type = b.find(0x55, 0, 21), None
+        if block_offset > -1:
+            frame_type = b[block_offset + 1]
         else:
-            del self.buffer[:block_offset]
             frame_type = False
+            del self.buffer[:20]
         
         lt_frame = None
         if frame_type:
