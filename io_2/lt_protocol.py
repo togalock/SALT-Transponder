@@ -123,6 +123,7 @@ class LT_Decoder:
                 frame_type = b[block_offset + 1]
                 break
         else:
+            del self.buffer[:block_offset]
             frame_type = False
         
         lt_frame = None
