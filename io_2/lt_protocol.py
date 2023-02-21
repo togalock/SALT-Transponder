@@ -35,7 +35,7 @@ class LT_Message:
         chunk_lens = ((0, 1), (1, 2), (2, 4))
         role, rid, _len = map_bytes(b, chunk_lens)
         if len(b) < _len: return None
-        data = b[5:5 + _len]
+        data = b[5:5 + _len]    
 
         return cls(role, rid, _len, data)
 
