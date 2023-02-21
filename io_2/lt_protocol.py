@@ -17,7 +17,10 @@ class LT_Loc:
         if len(b) < 11: return None
         chunk_lens = ((0, 1), (1, 2), (2, 5), (5, 7), (7, 8), (8, 9), (9, 11))
         role, rid, d, a, fp, rx, _ = map_bytes(b, chunk_lens)
-        a = ((a >> 15) * (-1 << 16)) + a # From uint16 to int16
+        # From uint16 to int16,
+        # 2's complement has first bit as negative
+        # (0x1011 = -8 + 0 + 2 + 1 = -5)
+        a = ((a >> 15) * (-1 << 16)) + a
 
         return cls(role, rid, d, a, fp, rx)
 
@@ -35,7 +38,7 @@ class LT_Message:
         chunk_lens = ((0, 1), (1, 2), (2, 4))
         role, rid, _len = map_bytes(b, chunk_lens)
         if len(b) < _len: return None
-        data = b[5:5 + _len]    
+        data = b[5:5 + _len]
 
         return cls(role, rid, _len, data)
 
@@ -118,8 +121,10 @@ class LT_Decoder:
         self.buffer = bytearray(init_bytes)
 
     def poll(self):
-        # Returns: False: Frame malformed; None: Frame incomplete; (Type, Object): 1 decoded frame
+        # Returns: False: Frame malformed; None: Frame incomplete;
+        # (Type, Object): 1 decoded frame
         b = self.buffer
+
         # Blocks without the header are malformed and should be dropped
         # Default to look 20 bytes ahead only to allow mainloop to continue
         block_offset, frame_type = b.find(0x55, 0, 21), None
@@ -138,7 +143,7 @@ class LT_Decoder:
                 lt_frame = LT_Locs.from_bytes(b)
             else:
                 pass
-                
+
         if lt_frame:
             del self.buffer[:lt_frame._len]
         # If frame is malformed, then 0x55 is part of missing data
