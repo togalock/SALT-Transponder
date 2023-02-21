@@ -40,9 +40,6 @@ def onclick_tag(x, y):
     else:
         tag_radial.push(new_radial, 40)
 
-    if tag_radial:
-        print(tag_radial.__dict__)
-
 def tag_tick():
     global tag_radial, fresh_for
     if tag_radial:
