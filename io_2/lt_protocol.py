@@ -120,18 +120,6 @@ class LTQueue:
     def __init__(self, init_bytes = b''):
         self.buffer = bytearray(init_bytes)
     
-    """
-    def get_frame_bounds(self, lookahead = 21, frames = 10, discard = False):
-        b = self.buffer
-        LOOK_AHEAD, MAX_FRAMES = lookahead, frames
-        cursor = b.find(0x55, 0, LOOK_AHEAD)
-        if cursor <= -1:
-            if discard: del self.buffer[:LOOK_AHEAD]
-            return False
-        for _ in range(MAX_FRAMES):
-      """      
-        
-    
     def pop(self):
         # Returns: False: Frame malformed; None: Frame incomplete;
         # (Type, Object): 1 decoded frame
