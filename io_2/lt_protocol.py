@@ -28,27 +28,27 @@ class LT_Loc:
 
 
 class LT_Message:
-    def __init__(self, role, rid, _len, data):
-        self.role, self.rid, self._len, self.data = role, rid, _len, data
+    def __init__(self, role, rid, len_, data):
+        self.role, self.rid, self.len_, self.data = role, rid, len_, data
 
     def __repr__(self):
-        return "<LTMsg[%i] %s>" % (self._len, self.data[0:20])
+        return "<LTMsg[%i] %s>" % (self.len_, self.data[0:20])
 
     @classmethod
     def from_bytes(cls, b):
         if len(b) < 4: return None
         chunk_lens = ((0, 1), (1, 2), (2, 4))
-        role, rid, _len = map_bytes(b, chunk_lens)
-        if len(b) < _len: return None
-        data = b[5:5 + _len]
+        role, rid, len_ = map_bytes(b, chunk_lens)
+        if len(b) < len_: return None
+        data = b[5:5 + len_]
 
-        return cls(role, rid, _len, data)
+        return cls(role, rid, len_, data)
 
 
 class LT_Locs:
-    def __init__(self, _len, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs):
-        self._len, self.role, self.rid, self.local_time, self.sys_time, self.vcc, self.n_nodes, self.lt_locs = \
-                  _len, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs
+    def __init__(self, len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs):
+        self.len_, self.role, self.rid, self.local_time, self.sys_time, self.vcc, self.n_nodes, self.lt_locs = \
+                  len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs
 
     @classmethod
     def from_bytes(cls, b):
@@ -56,9 +56,9 @@ class LT_Locs:
         if (b[0] != 0x55) or (b[1] != 0x07): return False
         
         chunk_lens = ((0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 10), (10, 14), (14, 18), (18, 20), (20, 21))
-        header, mark, _len, role, rid, local_time, sys_time, _, vcc, n_nodes = map_bytes(b, chunk_lens)
+        header, mark, len_, role, rid, local_time, sys_time, _, vcc, n_nodes = map_bytes(b, chunk_lens)
 
-        if len(b) < _len: return None
+        if len(b) < len_: return None
         
         lt_locs = []
         checksum, CHECKSUM_ENABLED = sum(b[0:21]) & ((1 << 8) - 1), True
@@ -75,15 +75,15 @@ class LT_Locs:
                 checksum = (checksum + sum(block)) & ((1 << 8) - 1)
         
         if CHECKSUM_ENABLED:
-            if b[_len - 1] != checksum: return False
+            if b[len_ - 1] != checksum: return False
 
-        return cls(_len, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs)
+        return cls(len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs)
 
 
 class LT_Messages:
-    def __init__(self, _len, role, rid, n_nodes, lt_messages):
-        self._len, self.role, self.rid, self.n_nodes, self.lt_messages = \
-                   _len, role, rid, n_nodes, lt_messages
+    def __init__(self, len_, role, rid, n_nodes, lt_messages):
+        self.len_, self.role, self.rid, self.n_nodes, self.lt_messages = \
+                   len_, role, rid, n_nodes, lt_messages
 
     @classmethod
     def from_bytes(cls, b):
@@ -91,9 +91,9 @@ class LT_Messages:
         if (b[0] != 0x55) or (b[1] != 0x02): return False
 
         chunk_lens = ((0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 10), (10, 11))
-        header, mark, _len, role, rid, _, n_nodes = map_bytes(b, chunk_lens)
+        header, mark, len_, role, rid, _, n_nodes = map_bytes(b, chunk_lens)
         
-        if len(b) < _len: return None
+        if len(b) < len_: return None
 
         lt_messages = []
         checksum, CHECKSUM_ENABLED = sum(b[0:11]) & ((1 << 8) - 1), True
@@ -107,22 +107,22 @@ class LT_Messages:
                 return lt_message
             else:
                 lt_messages.append(lt_message)
-                cursor += lt_message._len
+                cursor += lt_message.len_
 
             if CHECKSUM_ENABLED:
                 checksum = (checksum + sum(block)) & ((1 << 8) - 1)
 
         if CHECKSUM_ENABLED:
-            if b[_len - 1] != checksum: return False
+            if b[len_ - 1] != checksum: return False
 
-        return cls(_len, role, rid, n_nodes, lt_messages)
+        return cls(len_, role, rid, n_nodes, lt_messages)
 
 
-class LT_Decoder:
+class LTQueue:
     def __init__(self, init_bytes = b''):
         self.buffer = bytearray(init_bytes)
 
-    def poll(self):
+    def pop(self):
         # Returns: False: Frame malformed; None: Frame incomplete;
         # (Type, Object): 1 decoded frame
         b = self.buffer
@@ -147,7 +147,7 @@ class LT_Decoder:
                 pass
 
         if lt_frame:
-            del self.buffer[:lt_frame._len]
+            del self.buffer[:lt_frame.len_]
         # If frame is malformed, then 0x55 is part of missing data
         # dropping with same criteria as above
         elif lt_frame is False:
@@ -161,7 +161,7 @@ class LT_Decoder:
         self.buffer.extend(b)
 
 def test():
-    lt_decoder = LT_Decoder()
+    lt_queue = LTQueue()
     
     #UM Example 6.1.3.1
     SAMPLE_LOC_RAW = b'\x55\x07\x42\x00\x02\x00\xbe\x73\x02\x00\x00\x00\x00\x00\x00\x00\xf1\x06\xef\x12\x04\x01\x00\xff\x02\x00\x22\x0b\xa3\x9f\x9e\x00\x01\x01\x02\x03\x00\xad\x00\xa4\x9f\x00\x00\x01\x02\xec\x03\x00\xcb\x03\xa5\xa0\x00\x00\x01\x03\x88\x05\x00\x99\xec\xa3\xa0\x00\x00\x33'
@@ -169,11 +169,11 @@ def test():
     #UM Example 6.1.3.4
     SAMPLE_MSG_RAW = b'\x55\x02\x19\x00\x01\x00\xef\x72\x02\x32\x01\x02\x00\x09\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\x0f'
 
-    lt_decoder.write(SAMPLE_LOC_RAW)
-    lt_decoder.write(SAMPLE_MSG_RAW)
+    lt_queue.write(SAMPLE_LOC_RAW)
+    lt_queue.write(SAMPLE_MSG_RAW)
 
     for _ in range(3):
-        frame = lt_decoder.poll()
+        frame = lt_queue.pop()
         print(frame, frame[1].__dict__ if frame[1] else frame[1])
 
 if __name__ == "__main__":
