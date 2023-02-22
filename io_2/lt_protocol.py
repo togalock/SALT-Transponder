@@ -16,7 +16,7 @@ class LT_Loc:
     
     @classmethod
     def from_bytes(cls, b, start = 0):
-        if len(b) < 11: return None
+        if len(b) - start < 11: return None
         chunk_lens = ((0, 1), (1, 2), (2, 5), (5, 7), (7, 8), (8, 9), (9, 11))
         role, rid, d, a, fp, rx, _ = map_bytes(b, chunk_lens, start)
         # From uint16 to int16,
@@ -58,7 +58,7 @@ class LT_Locs:
         chunk_lens = ((0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 10), (10, 14), (14, 18), (18, 20), (20, 21))
         header, mark, len_, role, rid, local_time, sys_time, _, vcc, n_nodes = map_bytes(b, chunk_lens, start)
 
-        if len(b) < len_: return None
+        if len(b) - start < len_: return None
         
         lt_locs = []
         CHECKSUM_ENABLED = True
