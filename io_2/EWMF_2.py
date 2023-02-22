@@ -45,5 +45,5 @@ class EWMF_RadialD:
             # balance between rotating machine and straight line paths
             d_polar = d_polar + dt * self.v_polar
             d_rect = d_rect + dt * self.v_rect
-            d_rect_polar = complex(*cmath.polar(d_rect + dt * self.v_rect))
+            d_rect_polar = complex(*cmath.polar(d_rect))
             yield POLAR_WEIGHT * d_polar + (1 - POLAR_WEIGHT) * d_rect_polar
