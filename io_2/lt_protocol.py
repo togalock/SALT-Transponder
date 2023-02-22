@@ -5,7 +5,7 @@ rad = lambda d: 0.0174533 * d
 deg = lambda r: 57.29578 * r
 
 # Uses chunks of (start, stop); Pre-computes for better performance
-map_bytes = lambda b, chunk_lens: map(lambda chunk: uint(b[chunk[0]:chunk[1]]), chunk_lens)
+map_bytes = lambda b, chunk_lens, start = 0: map(lambda chunk: uint(b[start + chunk[0]:start + chunk[1]]), chunk_lens)
 
 class LT_Loc:
     def __init__(self, role, rid, d, a, fp, rx):
@@ -15,10 +15,10 @@ class LT_Loc:
         return "<LTLoc %.2f ∠%.2f (fp=%idB)>" % (self.d, deg(self.a), self.fp)
     
     @classmethod
-    def from_bytes(cls, b):
+    def from_bytes(cls, b, start = 0):
         if len(b) < 11: return None
         chunk_lens = ((0, 1), (1, 2), (2, 5), (5, 7), (7, 8), (8, 9), (9, 11))
-        role, rid, d, a, fp, rx, _ = map_bytes(b, chunk_lens)
+        role, rid, d, a, fp, rx, _ = map_bytes(b, chunk_lens, start)
         # From uint16 to int16,
         # 2's complement has first bit as negative
         # (0x1011 = -8 + 0 + 2 + 1 = -5)
@@ -35,12 +35,12 @@ class LT_Message:
         return "<LTMsg[%i] %s>" % (self.len_, self.data[0:20])
 
     @classmethod
-    def from_bytes(cls, b):
-        if len(b) < 4: return None
+    def from_bytes(cls, b, start = 0):
+        if len(b) - start < 4: return None
         chunk_lens = ((0, 1), (1, 2), (2, 4))
-        role, rid, len_ = map_bytes(b, chunk_lens)
-        if len(b) < len_: return None
-        data = b[5:5 + len_]
+        role, rid, len_ = map_bytes(b, chunk_lens, start)
+        if len(b) - start < len_: return None
+        data = b[start + 5:start + 5 + len_]
 
         return cls(role, rid, len_, data)
 
@@ -51,31 +51,31 @@ class LT_Locs:
                   len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs
 
     @classmethod
-    def from_bytes(cls, b):
-        if len(b) < 21: return None
-        if (b[0] != 0x55) or (b[1] != 0x07): return False
+    def from_bytes(cls, b, start = 0):
+        if len(b) - start < 21: return None
+        if (b[start] != 0x55) or (b[start + 1] != 0x07): return False
         
         chunk_lens = ((0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 10), (10, 14), (14, 18), (18, 20), (20, 21))
-        header, mark, len_, role, rid, local_time, sys_time, _, vcc, n_nodes = map_bytes(b, chunk_lens)
+        header, mark, len_, role, rid, local_time, sys_time, _, vcc, n_nodes = map_bytes(b, chunk_lens, start)
 
         if len(b) < len_: return None
         
         lt_locs = []
-        checksum, CHECKSUM_ENABLED = sum(b[0:21]) & ((1 << 8) - 1), True
+        CHECKSUM_ENABLED = True
+        checksum = sum(b[start:start + 21]) & ((1 << 8) - 1)
         
-        for i in range(21, 21 + n_nodes * 11, 11):
-            block = b[i:i + 11]
-            lt_loc = LT_Loc.from_bytes(block)
+        for i in range(start + 21, start + 21 + n_nodes * 11, 11):
+            lt_loc = LT_Loc.from_bytes(b, start = i)
             if not lt_loc:
                 return lt_loc
             else:
                 lt_locs.append(lt_loc)
 
             if CHECKSUM_ENABLED:
-                checksum = (checksum + sum(block)) & ((1 << 8) - 1)
+                checksum = (checksum + sum(b[i:i + 11])) & ((1 << 8) - 1)
         
         if CHECKSUM_ENABLED:
-            if b[len_ - 1] != checksum: return False
+            if b[start + len_ - 1] != checksum: return False
 
         return cls(len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs)
 
@@ -86,34 +86,32 @@ class LT_Messages:
                    len_, role, rid, n_nodes, lt_messages
 
     @classmethod
-    def from_bytes(cls, b):
-        if len(b) < 21: return None
-        if (b[0] != 0x55) or (b[1] != 0x02): return False
+    def from_bytes(cls, b, start = 0):
+        if len(b) - start < 21: return None
+        if (b[start] != 0x55) or (b[start + 1] != 0x02): return False
 
         chunk_lens = ((0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 10), (10, 11))
-        header, mark, len_, role, rid, _, n_nodes = map_bytes(b, chunk_lens)
+        header, mark, len_, role, rid, _, n_nodes = map_bytes(b, chunk_lens, start)
         
-        if len(b) < len_: return None
+        if len(b) - start < len_: return None
 
         lt_messages = []
-        checksum, CHECKSUM_ENABLED = sum(b[0:11]) & ((1 << 8) - 1), True
-        cursor = 11
+        CHECKSUM_ENABLED = True
+        checksum = sum(b[start:start + 11]) & ((1 << 8) - 1)
+        cursor = start + 11
 
         for _ in range(n_nodes):
-            block_len = uint(b[cursor + 2:cursor + 4])
-            block = b[cursor:cursor + block_len + 4]
-            lt_message = LT_Message.from_bytes(block)
+            lt_message = LT_Message.from_bytes(b, cursor)
             if not lt_message:
                 return lt_message
             else:
                 lt_messages.append(lt_message)
+                if CHECKSUM_ENABLED:
+                    checksum = (checksum + sum(b[cursor:cursor + lt_message.len_ + 4])) & ((1 << 8) - 1)
                 cursor += lt_message.len_
 
-            if CHECKSUM_ENABLED:
-                checksum = (checksum + sum(block)) & ((1 << 8) - 1)
-
         if CHECKSUM_ENABLED:
-            if b[len_ - 1] != checksum: return False
+            if b[start + len_ - 1] != checksum: return False
 
         return cls(len_, role, rid, n_nodes, lt_messages)
 
@@ -121,7 +119,19 @@ class LT_Messages:
 class LTQueue:
     def __init__(self, init_bytes = b''):
         self.buffer = bytearray(init_bytes)
-
+    
+    """
+    def get_frame_bounds(self, lookahead = 21, frames = 10, discard = False):
+        b = self.buffer
+        LOOK_AHEAD, MAX_FRAMES = lookahead, frames
+        cursor = b.find(0x55, 0, LOOK_AHEAD)
+        if cursor <= -1:
+            if discard: del self.buffer[:LOOK_AHEAD]
+            return False
+        for _ in range(MAX_FRAMES):
+      """      
+        
+    
     def pop(self):
         # Returns: False: Frame malformed; None: Frame incomplete;
         # (Type, Object): 1 decoded frame
