@@ -1,6 +1,8 @@
 from functools import partial
 
 uint = partial(int.from_bytes, byteorder="little", signed=False)
+rad = lambda d: 0.0174533 * d
+deg = lambda r: 57.29578 * r
 
 # Uses chunks of (start, stop); Pre-computes for better performance
 map_bytes = lambda b, chunk_lens: map(lambda chunk: uint(b[chunk[0]:chunk[1]]), chunk_lens)
@@ -10,8 +12,8 @@ class LT_Loc:
         self.role, self.rid, self.d, self.a, self.fp, self.rx = role, rid, d, a, fp, rx
 
     def __repr__(self):
-        return "<LTLoc %.2f ∠%.2f (fp=%idB)>" % (self.d / 1000, self.a / 100, self.fp)
-
+        return "<LTLoc %.2f ∠%.2f (fp=%idB)>" % (self.d, deg(self.a), self.fp)
+    
     @classmethod
     def from_bytes(cls, b):
         if len(b) < 11: return None
@@ -20,7 +22,7 @@ class LT_Loc:
         # From uint16 to int16,
         # 2's complement has first bit as negative
         # (0x1011 = -8 + 0 + 2 + 1 = -5)
-        a = ((a >> 15) * (-1 << 16)) + a
+        a = rad(0.01 * (((a >> 15) * (-1 << 16)) + a))
 
         return cls(role, rid, d, a, fp, rx)
 
