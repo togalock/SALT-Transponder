@@ -6,8 +6,8 @@ vdot = lambda a, b: complex(a.real * b.real, b.imag * b.imag)
 
 class EWMF_RadialD:
     ALPHA_D = 0.4
-    ALPHA_V = 0.3
-    READINGS_PER_MS = 0.025
+    ALPHA_V = 0.1
+    # READINGS_PER_MS = 0.025
     
     def __init__(self, d_polar, v_polar = 0+0j):
         # D_Polar: (Distance + Rad j)
@@ -18,8 +18,10 @@ class EWMF_RadialD:
         self.v_rect = cmath.rect(v_polar.real, v_polar.imag)
 
     def push(self, d_polar, dt):
+        if dt <= 0: return None
+        
         inv_dt = 1 / dt
-        n_dts = self.READINGS_PER_MS * dt
+        # n_dts = self.READINGS_PER_MS * dt
         
         # Parabola with (1, 1) and ((0, 0) and (2, 0)) -> [0...1]
         # to favor readings near polling rate
@@ -38,12 +40,14 @@ class EWMF_RadialD:
         self.v_polar = (1 - v_k) * self.v_polar + v_k * v_polar
         self.d_rect = (1 - d_k) * self.d_rect + d_k * d_rect
         self.v_rect = (1 - v_k) * self.v_rect + v_k * v_rect
+        
+        return True
 
     def trend_iter(self, n = 10, dt = 20, polar_weight = 0.5):
         d_polar = self.d_polar
         d_rect = self.d_rect
         POLAR_WEIGHT = polar_weight
-        for i in range(1, n):
+        for _ in range(1, n):
             # Combine polar and rectangular estimates to
             # balance between rotating machine and straight line paths
             d_polar = d_polar + dt * self.v_polar
