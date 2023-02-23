@@ -4,8 +4,10 @@ rad = lambda d: 0.0174533 * d
 deg = lambda r: 57.29578 * r
 px = lambda w, h: (w * turtle.window_width() // 2, h * turtle.window_height() // 2)
 
-COLORS = {"g": "#55FF55", "b": "#55FFFF", "r": "#FF5555",
-          "m": "#FF55FF", "y": "#FFFF55", "w": "#FFFFFF"}
+# See Minecraft Color Codes:
+# [a-f] = [Green, Cyan, Red, Magenta, Yellow, White]
+COLORS = {"a": "#55FF55", "b": "#55FFFF", "c": "#FF5555",
+          "d": "#FF55FF", "e": "#FFFF55", "f": "#FFFFFF"}
 
 def setTimeout(f, t_ms):
     turtle.ontimer(f, t_ms)
