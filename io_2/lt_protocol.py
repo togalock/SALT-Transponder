@@ -1,6 +1,7 @@
 from functools import partial
-from time import time as now
+from time import time_ns
 
+now = lambda: int(0.001 * time_ns())
 uint = partial(int.from_bytes, byteorder="little", signed=False)
 rad = lambda d: 0.0174533 * d
 deg = lambda r: 57.29578 * r
@@ -10,6 +11,7 @@ map_bytes = lambda b, chunk_lens, start=0: map(
     lambda chunk: uint(b[start + chunk[0] : start + chunk[1]]), chunk_lens
 )
 
+# Units: t (us), a (rad), d (mm)
 
 class LT_Loc:
     def __init__(self, role, rid, d, a, fp, rx):
@@ -247,8 +249,10 @@ def test():
 
     lt_queue.write(SAMPLE_LOC_RAW)
     lt_queue.write(SAMPLE_MSG_RAW)
-    print(lt_queue.pops_after(0))
-    print(lt_queue.pops_after(0))
+    loc_decoded = lt_queue.pops(1)
+    msg_decoded = lt_queue.pops(1)
+    print(loc_decoded[0][0], loc_decoded[0][1].__dict__)
+    print(msg_decoded[0][0], msg_decoded[0][1].__dict__)
     
     lt_queue.write(SAMPLE_LOC_RAW_1)
     print(lt_queue.pops_after(0))
