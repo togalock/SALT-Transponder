@@ -1,11 +1,15 @@
 from functools import partial
+from time import time as now
 
 uint = partial(int.from_bytes, byteorder="little", signed=False)
 rad = lambda d: 0.0174533 * d
 deg = lambda r: 57.29578 * r
 
 # Uses chunks of (start, stop); Pre-computes for better performance
-map_bytes = lambda b, chunk_lens, start = 0: map(lambda chunk: uint(b[start + chunk[0]:start + chunk[1]]), chunk_lens)
+map_bytes = lambda b, chunk_lens, start=0: map(
+    lambda chunk: uint(b[start + chunk[0] : start + chunk[1]]), chunk_lens
+)
+
 
 class LT_Loc:
     def __init__(self, role, rid, d, a, fp, rx):
@@ -14,19 +18,20 @@ class LT_Loc:
 
     def __repr__(self):
         return "<LTLoc %.2f ∠%.2f (fp=%idB)>" % (self.d, deg(self.a), self.fp)
-    
+
     @classmethod
-    def from_bytes(cls, b, start = 0):
-        if len(b) - start < 11: return None
+    def from_bytes(cls, b, start=0):
+        if len(b) - start < 11:
+            return None
         chunk_lens = ((0, 1), (1, 2), (2, 5), (5, 7), (7, 8), (8, 9), (9, 11))
         role, rid, d, a, fp, rx, _ = map_bytes(b, chunk_lens, start)
         # From uint16 to int16,
         # 2's complement has first bit as negative
         # (0x1011 = -8 + 0 + 2 + 1 = -5)
         a = rad(0.01 * (((a >> 15) * (-1 << 16)) + a))
-        
+
         res = cls(role, rid, d, a, fp, rx)
-        res.checksum = sum(b[start:start + 11]) & ((1 << 8) - 1)
+        res.checksum = sum(b[start : start + 11]) & ((1 << 8) - 1)
 
         return res
 
@@ -40,42 +45,59 @@ class LT_Message:
         return "<LTMsg[%i] %s>" % (self.len_, self.data[0:20])
 
     @classmethod
-    def from_bytes(cls, b, start = 0):
+    def from_bytes(cls, b, start=0):
         readable_length = len(b) - start
-        if readable_length < 4: return None
+        if readable_length < 4:
+            return None
         chunk_lens = ((0, 1), (1, 2), (2, 4))
         role, rid, len_ = map_bytes(b, chunk_lens, start)
-        if readable_length < len_: return None
-        data = b[start + 5:start + 5 + len_]
-        
+        if readable_length < len_:
+            return None
+        data = b[start + 5 : start + 5 + len_]
+
         res = cls(role, rid, len_, data)
-        res.checksum = sum(b[start:start + len_ + 4]) & ((1 << 8) - 1)
-        
+        res.checksum = sum(b[start : start + len_ + 4]) & ((1 << 8) - 1)
+
         return res
 
 
 class LT_Locs:
     def __init__(self, len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs):
-        self.len_, self.role, self.rid, self.local_time, self.sys_time, self.vcc, self.n_nodes, self.lt_locs = \
-                  len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs
+        (
+            self.len_,
+            self.role,
+            self.rid,
+            self.local_time,
+            self.sys_time,
+            self.vcc,
+            self.n_nodes,
+            self.lt_locs,
+        ) = (len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs)
 
     @classmethod
-    def from_bytes(cls, b, start = 0):
+    def from_bytes(cls, b, start=0):
         readable_length = len(b) - start
-        if readable_length < 21: return None
-        if (b[start] != 0x55) or (b[start + 1] != 0x07): return False
-        
-        chunk_lens = ((0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 10), (10, 14), (14, 18), (18, 20), (20, 21))
-        _header, _mark, len_, role, rid, local_time, sys_time, _, vcc, n_nodes = map_bytes(b, chunk_lens, start)
+        if readable_length < 21:
+            return None
+        if (b[start] != 0x55) or (b[start + 1] != 0x07):
+            return False
 
-        if readable_length < len_: return None
-        
+        chunk_lens = ((0, 1), (1, 2), (2, 4),
+                      (4, 5), (5, 6),
+                      (6, 10), (10, 14), (14, 18),
+                      (18, 20), (20, 21),)
+        (_header, _mark, len_, role, rid, local_time, sys_time, _, vcc, n_nodes, ) = \
+                  map_bytes(b, chunk_lens, start)
+
+        if readable_length < len_:
+            return None
+
         lt_locs = []
         CHECKSUM_ENABLED = True
-        checksum = sum(b[start:start + 21]) & ((1 << 8) - 1)
-        
+        checksum = sum(b[start : start + 21]) & ((1 << 8) - 1)
+
         for i in range(start + 21, start + 21 + n_nodes * 11, 11):
-            lt_loc = LT_Loc.from_bytes(b, start = i)
+            lt_loc = LT_Loc.from_bytes(b, start=i)
             if not lt_loc:
                 return lt_loc
             else:
@@ -83,32 +105,36 @@ class LT_Locs:
 
             if CHECKSUM_ENABLED:
                 checksum = (checksum + lt_loc.checksum) & ((1 << 8) - 1)
-        
+
         if CHECKSUM_ENABLED:
-            if b[start + len_ - 1] != checksum: return False
+            if b[start + len_ - 1] != checksum:
+                return False
 
         return cls(len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs)
 
 
 class LT_Messages:
     def __init__(self, len_, role, rid, n_nodes, lt_messages):
-        self.len_, self.role, self.rid, self.n_nodes, self.lt_messages = \
-                   len_, role, rid, n_nodes, lt_messages
+        self.len_, self.role, self.rid, self.n_nodes, self.lt_messages = (
+            len_, role, rid, n_nodes, lt_messages,)
 
     @classmethod
-    def from_bytes(cls, b, start = 0):
+    def from_bytes(cls, b, start=0):
         readable_length = len(b) - start
-        if readable_length < 21: return None
-        if (b[start] != 0x55) or (b[start + 1] != 0x02): return False
+        if readable_length < 21:
+            return None
+        if (b[start] != 0x55) or (b[start + 1] != 0x02):
+            return False
 
         chunk_lens = ((0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 10), (10, 11))
         _header, _mark, len_, role, rid, _, n_nodes = map_bytes(b, chunk_lens, start)
-        
-        if readable_length < len_: return None
+
+        if readable_length < len_:
+            return None
 
         lt_messages = []
         CHECKSUM_ENABLED = True
-        checksum = sum(b[start:start + 11]) & ((1 << 8) - 1)
+        checksum = sum(b[start : start + 11]) & ((1 << 8) - 1)
         cursor = start + 11
 
         for _ in range(n_nodes):
@@ -122,87 +148,108 @@ class LT_Messages:
                 cursor += lt_message.len_
 
         if CHECKSUM_ENABLED:
-            if b[start + len_ - 1] != checksum: return False
+            if b[start + len_ - 1] != checksum:
+                return False
 
         return cls(len_, role, rid, n_nodes, lt_messages)
 
 
 class LTQueue:
-    def __init__(self, init_bytes = b''):
+    def __init__(self, init_bytes=b""):
         self.buffer = bytearray(init_bytes)
-    
-    def get_frame_ranges(self, n = 10, start = 0):
+        self.write_times = []  # [[Time, Frames Read]]
+
+    def get_frame_ranges(self, n=10, start=0):
+        # Returns [Scan End Index, [
+        # [Frame Complete, Type, Start, Actual Length, Stated Length], ...]]
         MAX_LOOKAHEAD = 21
         MAX_FRAMES = n
-        
+
         b = self.buffer
         cursor = start
-        res = []
+        res = [min(cursor, len(b)), []]
         for _ in range(MAX_FRAMES):
+            res[0] = cursor
             cursor = b.find(0x55, cursor, cursor + MAX_LOOKAHEAD)
-            if cursor < 0 or len(b) - cursor < 4: break
+            if cursor < 0 or len(b) - cursor < 4:
+                break
+
             chunk_lens = ((0, 1), (1, 2), (2, 4))
             _header, mark, len_ = map_bytes(b, chunk_lens, cursor)
-            is_complete = cursor + len_ - 1 <= len(b)
-            
-            res.append([is_complete, mark, cursor, len_])
+            actual_len = min(len(b) - cursor, len_)
+            is_complete = actual_len >= len_
+            res[1].append([is_complete, mark, cursor, actual_len, len_])
+
             cursor += len_
-        
+
+        return res
+
+    def write(self, b, time=None):
+        if time is None:
+            time = now()
+        old_b_ends = self.get_frame_ranges()[0]
+
+        self.buffer.extend(b)
+
+        frames_added = len(self.get_frame_ranges(start=old_b_ends)[1])
+        res = [time, frames_added]
+        self.write_times.append(res)
+
         return res
     
-    def pop(self):
-        # Returns: False: Frame malformed; None: Frame incomplete;
-        # (Type, Object): 1 decoded frame
-        b = self.buffer
-
-        # Blocks without the header are malformed and should be dropped
-        # Default to look 20 bytes ahead only to allow mainloop to continue
-        block_offset, frame_type = b.find(0x55, 0, 21), None
-        if block_offset > -1:
-            frame_type = b[block_offset + 1]
-            del self.buffer[:block_offset]
-        else:
-            frame_type = False
-            del self.buffer[:20]
+    def pops(self, n=10):
+        _, frame_ranges = self.get_frame_ranges(n = n)
+        res = []
+        pop_bytes = max(frame_range[2] + frame_range[3] if frame_range[0] else 0 \
+                        for frame_range in frame_ranges) if frame_ranges else 0
         
-        lt_frame = None
-        if frame_type:
-            if frame_type == 0x02:
-                lt_frame = LT_Messages.from_bytes(b)
-            elif frame_type == 0x07:
-                lt_frame = LT_Locs.from_bytes(b)
-            else:
-                pass
-
-        if lt_frame:
-            del self.buffer[:lt_frame.len_]
-        # If frame is malformed, then 0x55 is part of missing data
-        # dropping with same criteria as above
-        elif lt_frame is False:
-            del self.buffer[:20]
-        else:
-            pass
+        for is_complete, frame_type, start, _, _ in frame_ranges:
+            self.write_times = [write_time
+                                for write_time in self.write_times
+                                if write_time[1] > 0]
+            if len(self.write_times) <= 0 or not is_complete: break
             
-        return (frame_type, lt_frame)
+            timestamp = self.write_times[0][0]
+            
+            if not is_complete:
+                res.append(None)
+            elif frame_type == 0x02:
+                res.append([timestamp, LT_Messages.from_bytes(self.buffer, start=start)])
+            elif frame_type == 0x07:
+                res.append([timestamp, LT_Locs.from_bytes(self.buffer, start=start)])
+            else:
+                res.append(False)
 
-    def write(self, b):
-        self.buffer.extend(b)
+            self.write_times[0][1] -= 1
+        
+        del self.buffer[:pop_bytes]
+        return res
+        
+    
+    def pops_after(self, time=0, n=10):
+        drop_frames = sum(write_time[1] if write_time[0] < time else 0 for write_time in self.write_times)
+        drop_bytes, _ = self.get_frame_ranges(n = drop_frames)
+        self.write_times = [write_time for write_time in self.write_times if write_time[0] >= time]
+        del self.buffer[:drop_bytes]
+        
+        return self.pops(n = n)
+
 
 def test():
     lt_queue = LTQueue()
-    
-    #UM Example 6.1.3.1
-    SAMPLE_LOC_RAW = b'\x55\x07\x42\x00\x02\x00\xbe\x73\x02\x00\x00\x00\x00\x00\x00\x00\xf1\x06\xef\x12\x04\x01\x00\xff\x02\x00\x22\x0b\xa3\x9f\x9e\x00\x01\x01\x02\x03\x00\xad\x00\xa4\x9f\x00\x00\x01\x02\xec\x03\x00\xcb\x03\xa5\xa0\x00\x00\x01\x03\x88\x05\x00\x99\xec\xa3\xa0\x00\x00\x33'
 
-    #UM Example 6.1.3.4
-    SAMPLE_MSG_RAW = b'\x55\x02\x19\x00\x01\x00\xef\x72\x02\x32\x01\x02\x00\x09\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\x0f'
-    
+    # UM Example 6.1.3.1
+    SAMPLE_LOC_RAW = b"\x55\x07\x42\x00\x02\x00\xbe\x73\x02\x00\x00\x00\x00\x00\x00\x00\xf1\x06\xef\x12\x04\x01\x00\xff\x02\x00\x22\x0b\xa3\x9f\x9e\x00\x01\x01\x02\x03\x00\xad\x00\xa4\x9f\x00\x00\x01\x02\xec\x03\x00\xcb\x03\xa5\xa0\x00\x00\x01\x03\x88\x05\x00\x99\xec\xa3\xa0\x00\x00\x33"
+
+    # UM Example 6.1.3.4
+    SAMPLE_MSG_RAW = b"\x55\x02\x19\x00\x01\x00\xef\x72\x02\x32\x01\x02\x00\x09\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\x0f"
+
     lt_queue.write(SAMPLE_LOC_RAW)
     lt_queue.write(SAMPLE_MSG_RAW)
-    
-    for _ in range(3):
-        frame = lt_queue.pop()
-        print(frame, frame[1].__dict__ if frame[1] else frame[1])
+
+    print(lt_queue.pops_after(0))
+    print(lt_queue.pops_after(0))
+
 
 if __name__ == "__main__":
     test()
