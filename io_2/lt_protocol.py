@@ -10,6 +10,7 @@ map_bytes = lambda b, chunk_lens, start = 0: map(lambda chunk: uint(b[start + ch
 class LT_Loc:
     def __init__(self, role, rid, d, a, fp, rx):
         self.role, self.rid, self.d, self.a, self.fp, self.rx = role, rid, d, a, fp, rx
+        self.checksum = None
 
     def __repr__(self):
         return "<LTLoc %.2f ∠%.2f (fp=%idB)>" % (self.d, deg(self.a), self.fp)
@@ -23,26 +24,34 @@ class LT_Loc:
         # 2's complement has first bit as negative
         # (0x1011 = -8 + 0 + 2 + 1 = -5)
         a = rad(0.01 * (((a >> 15) * (-1 << 16)) + a))
+        
+        res = cls(role, rid, d, a, fp, rx)
+        res.checksum = sum(b[start:start + 11]) & ((1 << 8) - 1)
 
-        return cls(role, rid, d, a, fp, rx)
+        return res
 
 
 class LT_Message:
     def __init__(self, role, rid, len_, data):
         self.role, self.rid, self.len_, self.data = role, rid, len_, data
+        self.checksum = None
 
     def __repr__(self):
         return "<LTMsg[%i] %s>" % (self.len_, self.data[0:20])
 
     @classmethod
     def from_bytes(cls, b, start = 0):
-        if len(b) - start < 4: return None
+        readable_length = len(b) - start
+        if readable_length < 4: return None
         chunk_lens = ((0, 1), (1, 2), (2, 4))
         role, rid, len_ = map_bytes(b, chunk_lens, start)
-        if len(b) - start < len_: return None
+        if readable_length < len_: return None
         data = b[start + 5:start + 5 + len_]
-
-        return cls(role, rid, len_, data)
+        
+        res = cls(role, rid, len_, data)
+        res.checksum = sum(b[start:start + len_ + 4]) & ((1 << 8) - 1)
+        
+        return res
 
 
 class LT_Locs:
@@ -52,13 +61,14 @@ class LT_Locs:
 
     @classmethod
     def from_bytes(cls, b, start = 0):
-        if len(b) - start < 21: return None
+        readable_length = len(b) - start
+        if readable_length < 21: return None
         if (b[start] != 0x55) or (b[start + 1] != 0x07): return False
         
         chunk_lens = ((0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 10), (10, 14), (14, 18), (18, 20), (20, 21))
-        header, mark, len_, role, rid, local_time, sys_time, _, vcc, n_nodes = map_bytes(b, chunk_lens, start)
+        _header, _mark, len_, role, rid, local_time, sys_time, _, vcc, n_nodes = map_bytes(b, chunk_lens, start)
 
-        if len(b) - start < len_: return None
+        if readable_length < len_: return None
         
         lt_locs = []
         CHECKSUM_ENABLED = True
@@ -72,7 +82,7 @@ class LT_Locs:
                 lt_locs.append(lt_loc)
 
             if CHECKSUM_ENABLED:
-                checksum = (checksum + sum(b[i:i + 11])) & ((1 << 8) - 1)
+                checksum = (checksum + lt_loc.checksum) & ((1 << 8) - 1)
         
         if CHECKSUM_ENABLED:
             if b[start + len_ - 1] != checksum: return False
@@ -87,13 +97,14 @@ class LT_Messages:
 
     @classmethod
     def from_bytes(cls, b, start = 0):
-        if len(b) - start < 21: return None
+        readable_length = len(b) - start
+        if readable_length < 21: return None
         if (b[start] != 0x55) or (b[start + 1] != 0x02): return False
 
         chunk_lens = ((0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 10), (10, 11))
-        header, mark, len_, role, rid, _, n_nodes = map_bytes(b, chunk_lens, start)
+        _header, _mark, len_, role, rid, _, n_nodes = map_bytes(b, chunk_lens, start)
         
-        if len(b) - start < len_: return None
+        if readable_length < len_: return None
 
         lt_messages = []
         CHECKSUM_ENABLED = True
@@ -107,7 +118,7 @@ class LT_Messages:
             else:
                 lt_messages.append(lt_message)
                 if CHECKSUM_ENABLED:
-                    checksum = (checksum + sum(b[cursor:cursor + lt_message.len_ + 4])) & ((1 << 8) - 1)
+                    checksum = (checksum + lt_message.checksum) & ((1 << 8) - 1)
                 cursor += lt_message.len_
 
         if CHECKSUM_ENABLED:
@@ -119,6 +130,25 @@ class LT_Messages:
 class LTQueue:
     def __init__(self, init_bytes = b''):
         self.buffer = bytearray(init_bytes)
+    
+    def get_frame_ranges(self, n = 10, start = 0):
+        MAX_LOOKAHEAD = 21
+        MAX_FRAMES = n
+        
+        b = self.buffer
+        cursor = start
+        res = []
+        for _ in range(MAX_FRAMES):
+            cursor = b.find(0x55, cursor, cursor + MAX_LOOKAHEAD)
+            if cursor < 0 or len(b) - cursor < 4: break
+            chunk_lens = ((0, 1), (1, 2), (2, 4))
+            _header, mark, len_ = map_bytes(b, chunk_lens, cursor)
+            is_complete = cursor + len_ - 1 <= len(b)
+            
+            res.append([is_complete, mark, cursor, len_])
+            cursor += len_
+        
+        return res
     
     def pop(self):
         # Returns: False: Frame malformed; None: Frame incomplete;
@@ -166,10 +196,10 @@ def test():
 
     #UM Example 6.1.3.4
     SAMPLE_MSG_RAW = b'\x55\x02\x19\x00\x01\x00\xef\x72\x02\x32\x01\x02\x00\x09\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\x0f'
-
+    
     lt_queue.write(SAMPLE_LOC_RAW)
     lt_queue.write(SAMPLE_MSG_RAW)
-
+    
     for _ in range(3):
         frame = lt_queue.pop()
         print(frame, frame[1].__dict__ if frame[1] else frame[1])
