@@ -8,13 +8,14 @@ class EWMF_RadialD:
     ALPHA_D = 0.4
     ALPHA_V = 0.3
     READINGS_PER_MS = 0.025
-    def __init__(self, d_polar):
+    
+    def __init__(self, d_polar, v_polar = 0+0j):
         # D_Polar: (Distance + Rad j)
         # D_Rect: (X + Y j)
         self.d_polar = d_polar
-        self.v_polar = 0+0j
+        self.v_polar = v_polar
         self.d_rect = cmath.rect(d_polar.real, d_polar.imag)
-        self.v_rect = 0+0j
+        self.v_rect = cmath.rect(v_polar.real, v_polar.imag)
 
     def push(self, d_polar, dt):
         inv_dt = 1 / dt
