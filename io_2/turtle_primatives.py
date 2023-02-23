@@ -1,4 +1,5 @@
 import turtle
+import cmath
 
 rad = lambda d: 0.0174533 * d
 deg = lambda r: 57.29578 * r
@@ -8,6 +9,10 @@ px = lambda w, h: (w * turtle.window_width() // 2, h * turtle.window_height() //
 # [a-f] = [Green, Cyan, Red, Magenta, Yellow, White]
 COLORS = {"a": "#55FF55", "b": "#55FFFF", "c": "#FF5555",
           "d": "#FF55FF", "e": "#FFFF55", "f": "#FFFFFF"}
+
+def t_rect(r, a):
+    d_rect = cmath.rect(r, rad(a))
+    return (int(d_rect.real), int(d_rect.imag))
 
 def setTimeout(f, t_ms):
     turtle.ontimer(f, t_ms)
@@ -23,13 +28,18 @@ def setInterval(f, t_ms):
     wrapper()
     return is_running
 
-def fill_shape(f):
-    def wrapper(*args, **kwargs):
-        turtle.begin_fill()
-        f(*args, **kwargs)
-        turtle.end_fill()
+def Move(t: turtle.Turtle, x, y):
+    t.up()
+    t.goto(x, y)
+    t.down()
     
-    return wrapper()
+
+def Line(t: turtle.Turtle, iterable):
+    t.up()
+    t.goto(*next(iterable, (0, 0)))
+    t.down()
+    for x, y in iterable:
+        t.goto(x, y)
 
 def CircleC(t: turtle.Turtle, x, y, r):
     t.up()
@@ -54,13 +64,13 @@ def ArcC(t: turtle.Turtle, x, y, r, a1, a2, draw_r = False):
 def ArrowC(t: turtle.Turtle, x, y, r, a):
     t.up()
     t.seth(a)
-    t.goto(x1, y1)
+    t.goto(x, y)
     t.down()
     t.fd(r)
     t.left(135)
     t.fd(r // 4)
     t.back(r // 4)
-    t.left(45)
+    t.left(90)
     t.fd(r // 4)
     
 
