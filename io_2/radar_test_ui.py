@@ -39,15 +39,17 @@ def worker_circle(ewmf: EWMF_RadialD):
     pen.end_fill()
     
     Move(pen, worker_x, worker_y)
+    min_rad, max_rad = 6, 0
     for d_polar in ewmf.trend_iter(n=10, dt=75):
+        min_rad, max_rad = min(min_rad, d_polar.imag), max(max_rad, d_polar.imag)
         d_rect = cmath.rect(d_polar.real, d_polar.imag)
         d_x, d_y = d_rect.real * SCALE, d_rect.imag * SCALE
         pen.goto(d_x, d_y)
+    ArcC(pen, 0, 0, 1500 * SCALE, deg(min_rad), deg(max_rad), True)
 
 # Test Scripts here
 machine_triangle()
 warning_circles()
 worker_circle(sample_worker)
-ArrowC(pen, 0, 0, 100, 35)
 
 turtle.mainloop()
