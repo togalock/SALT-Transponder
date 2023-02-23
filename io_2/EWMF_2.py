@@ -19,13 +19,15 @@ class EWMF_RadialD:
     def push(self, d_polar, dt):
         inv_dt = 1 / dt
         n_dts = self.READINGS_PER_MS * dt
+        
         # Parabola with (1, 1) and ((0, 0) and (2, 0)) -> [0...1]
         # to favor readings near polling rate
         # as data near polling rate is more "trustable"
-        confidence = max(0, -(n_dts - 1) * (n_dts - 1) + 1)
+        confidence = 1 # max(0, -(n_dts - 1) * (n_dts - 1) + 1)
         
         d_k = self.ALPHA_D * confidence
         v_k = self.ALPHA_V * confidence
+        
         
         v_polar = (d_polar - self.d_polar) * inv_dt
         d_rect = cmath.rect(d_polar.real, d_polar.imag)
