@@ -187,13 +187,16 @@ class LTQueue:
         return res
 
     def write(self, b, time=None):
-        if time is None:
-            time = now()
+        if time is None: time = now()
+        if len(b) <= 0: return None
+        
         old_b_ends = self.get_frame_ranges()[0]
 
         self.buffer.extend(b)
 
         frames_added = len(self.get_frame_ranges(start=old_b_ends)[1])
+        if frames_added <= 0: return None
+        
         res = [time, frames_added]
         self.write_times.append(res)
 
@@ -214,13 +217,13 @@ class LTQueue:
             timestamp = self.write_times[0][0]
             
             if not is_complete:
-                res.append(None)
+                res.append([timestamp, None])
             elif frame_type == 0x02:
                 res.append([timestamp, LT_Messages.from_bytes(self.buffer, start=start)])
             elif frame_type == 0x07:
                 res.append([timestamp, LT_Locs.from_bytes(self.buffer, start=start)])
             else:
-                res.append(False)
+                res.append([timestamp, False])
 
             self.write_times[0][1] -= 1
         
