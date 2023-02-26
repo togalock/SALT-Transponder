@@ -3,13 +3,14 @@ from EWMF_2 import EWMF_RadialD
 from turtle_primatives import *
 
 SYMBOL_SIZE = px(0.05, 0.07)
-SCALE = px(0.25, 0)[0] / 600 # Horizontally 25% spans 60cm
+CAUTION_DIST, WARNING_DIST = 1200, 600
+SCALE = px(0.25, 0)[0] / WARNING_DIST # Horizontally 25% spans inner circle
 
 def init_pen():
     turtle.Screen().setup(800, 600)
     turtle.Screen().title("SALT Base")
     turtle.Screen().bgcolor("black")
-    turtle.Screen().tracer(0, 0.001)
+    turtle.Screen().tracer(0, 0)
     pen = turtle.Turtle()
     pen.hideturtle()
     pen.speed(0)
@@ -22,16 +23,16 @@ def MachineTri(pen: turtle.Turtle):
 
 def WarningCircle(pen: turtle.Turtle):
     pen.color(COLORS["f"])
-    r1, r2 = 600 * SCALE, 1200 * SCALE
+    r1, r2 = WARNING_DIST * SCALE, CAUTION_DIST * SCALE
     CircleC(pen, 0, 0, r1)
-    Text(pen, "60cm", r1, 0)
+    Text(pen, str(WARNING_DIST), r1, 0)
     CircleC(pen, 0, 0, r2)
-    Text(pen, "120cm", r2, 0)
+    Text(pen, str(CAUTION_DIST), r2, 0)
 
 def WorkerBall(pen: turtle.Turtle, ewmf: EWMF_RadialD):
-    if ewmf.d_polar.real < 600:
+    if ewmf.d_polar.real < WARNING_DIST:
         pen.color(COLORS["c"])
-    elif ewmf.d_polar.real < 1200:
+    elif ewmf.d_polar.real < CAUTION_DIST:
         pen.color(COLORS["e"])
     else:
         pen.color(COLORS["f"])
@@ -49,17 +50,5 @@ def WorkerBall(pen: turtle.Turtle, ewmf: EWMF_RadialD):
         d_x, d_y = d_rect.real * SCALE, d_rect.imag * SCALE
         pen.goto(d_x, d_y)
     
-    if ewmf.d_polar.real < 600:
-        ArcC(pen, 0, 0, 1000 * SCALE, deg(min_rad) - 10, deg(max_rad) + 10, True)
-
-def FFSquare(pen: turtle.Turtle, is_on = True):
-    if is_on:
-        pen.color(COLORS["a"])
-    else:
-        pen.color(COLORS["f"])
-
-    pen.begin_fill()
-    RectC(pen, *px(-0.9, -0.9), *px(0.05, 0.05))
-    pen.end_fill()
-
-init_pen()
+    if ewmf.d_polar.real < WARNING_DIST:
+        ArcC(pen, 0, 0, px(0.4, 0)[0], deg(min_rad) - 10, deg(max_rad) + 10, True)

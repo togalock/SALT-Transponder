@@ -13,7 +13,6 @@ lt_uart = get_serial_interactive()
 lt_queue = lt.LTQueue()
 system_time = lt.now()
 worker, worker_last_seen = None, None
-is_ffing = True
 
 pen = init_pen()
 
@@ -21,12 +20,12 @@ def uart_read():
     lt_queue.write(lt_uart.read(500), lt.now())
 
 def fast_forward(t = 30, step = 1):
-    global worker, worker_last_seen, system_time, is_ffing
+    global worker, worker_last_seen, system_time
     frame_queue = lt_queue.pops_after(system_time + t)
     frame_queue = frame_queue[::step]
     system_time = lt.now()
     for time, lt_locs in frame_queue:
-        if lt_locs is not None and lt_locs.n_nodes >= 1: # If tag is present
+        if lt_locs is not None and lt_locs.n_nodes >= 1:
             new_d_polar = complex(lt_locs.lt_locs[0].d, lt_locs.lt_locs[0].a + rad(90))
             if worker is None:
                 worker = EWMF_RadialD(new_d_polar)
@@ -38,14 +37,12 @@ def fast_forward(t = 30, step = 1):
             if worker and time - worker_last_seen >= MAX_WORKER_LIFE:
                 worker, worker_last_seen = None, None
 
-    is_ffing = not(is_ffing)
-
 def draw():
     pen.clear()
     MachineTri(pen)
     WarningCircle(pen)
     if worker is not None: WorkerBall(pen, worker)
-    FFSquare(pen, is_ffing)
+    Text(pen, str(system_time % 1000), *px(-0.99, -0.97), align="left")
     turtle.Screen().update()
 
 setInterval(uart_read, 1)
