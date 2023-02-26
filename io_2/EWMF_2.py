@@ -6,7 +6,7 @@ vdot = lambda a, b: complex(a.real * b.real, b.imag * b.imag)
 
 class EWMF_RadialD:
     ALPHA_D = 0.4
-    ALPHA_V = 0.1
+    ALPHA_V = 0.05
     # READINGS_PER_MS = 0.025
     
     def __init__(self, d_polar, v_polar = 0+0j):
