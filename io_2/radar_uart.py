@@ -4,7 +4,7 @@ from lt_serial import get_serial_interactive
 import lt_protocol as lt
 from EWMF_2 import EWMF_RadialD
 from turtle_primatives import *
-from radar_components import *
+from radar_primatives import *
 
 MS = 1000
 MAX_WORKER_LIFE = 2000 * MS
