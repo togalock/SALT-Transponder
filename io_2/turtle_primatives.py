@@ -19,20 +19,42 @@ COLORS = {
     "g1": "#CC9933", "g2": "#996600", "g3": "#660000",
     }
 
+class Callback:
+    # This class prevents RecursionError by
+    # inhibiting Interval Callbacks from scheduling itself
+    # before it has run at least once.
+    def __init__(self, f, t_ms, is_interval = False, start_now = True):
+        self.f, self.t_ms = f, t_ms
+        self.is_interval = is_interval
+        self.has_run = False
+        self.is_active = True
+        if start_now:
+            turtle.ontimer(self, self.t_ms)
+
+    def __call__(self):
+        if not self.is_active: return False
+        if not self.has_run:
+            res = self.f()
+            self.has_run = True
+        if self.is_interval and self.has_run:
+            turtle.ontimer(self, self.t_ms)
+        return res
+    
+    def start(self):
+        if not self.is_interval:
+            self.has_run = False
+        self.is_active = True
+    
+    def stop(self):
+        self.is_active = False
+
+# Functions remains for compatibility purposes
+# To be Deprecated
 def setTimeout(f, t_ms):
-    turtle.ontimer(f, t_ms)
+    return Callback(f, t_ms)
 
 def setInterval(f, t_ms):
-    is_running = [True, ]
-    def wrapper():
-        nonlocal is_running
-        if is_running[0]:
-            f()
-            turtle.ontimer(wrapper, t_ms)
-            
-    wrapper()
-    return is_running
-
+    return Callback(f, t_ms, True)
 
 def Move(t: turtle.Turtle, x, y):
     t.up()
