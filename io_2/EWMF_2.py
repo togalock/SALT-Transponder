@@ -5,11 +5,9 @@ deg = lambda r: 57.29578 * r
 vdot = lambda a, b: complex(a.real * b.real, b.imag * b.imag)
 
 class EWMF_RadialD:
-    ALPHA_D = 0.4
-    ALPHA_V = 0.05
-    # READINGS_PER_MS = 0.025
+    ALPHA_DP, ALPHA_VP, ALPHA_VR = 0.1, 0.1, 0.1
     
-    def __init__(self, d_polar, v_polar = 0+0j):
+    def __init__(self, d_polar = 0+0j, v_polar = 0+0j):
         # D_Polar: (Distance + Rad j)
         # D_Rect: (X + Y j)
         self.d_polar = d_polar
@@ -28,30 +26,21 @@ class EWMF_RadialD:
         )
     
     def push(self, d_polar, dt):
-        if dt <= 0: return None
-        
-        inv_dt = 1 / dt
-        # n_dts = self.READINGS_PER_MS * dt
-        
-        # Parabola with (1, 1) and ((0, 0) and (2, 0)) -> [0...1]
-        # to favor readings near polling rate
-        # as data near polling rate is more "trustable"
-        confidence = 1 # max(0, -(n_dts - 1) * (n_dts - 1) + 1)
-        
-        d_k = self.ALPHA_D * confidence
-        v_k = self.ALPHA_V * confidence
-        
-        
-        v_polar = (d_polar - self.d_polar) * inv_dt
-        d_rect = cmath.rect(d_polar.real, d_polar.imag)
-        v_rect = (d_rect - self.d_rect) * inv_dt
+        if dt <= 0: return
 
-        self.d_polar = (1 - d_k) * self.d_polar + d_k * d_polar
-        self.v_polar = (1 - v_k) * self.v_polar + v_k * v_polar
-        self.d_rect = (1 - d_k) * self.d_rect + d_k * d_rect
-        self.v_rect = (1 - v_k) * self.v_rect + v_k * v_rect
-        
-        return True
+        dp_k = self.ALPHA_DP
+        vp_k = self.ALPHA_VP
+        vr_k = self.ALPHA_VR
+
+        d_rect = cmath.rect(d_polar.real, d_polar.imag)
+        v_polar = (d_polar - self.d_polar) / dt
+        v_rect = (d_rect - self.d_rect) / dt
+
+        self.d_polar = (1 - dp_k) * self.d_polar + dp_k * d_polar
+        # Matching DP and DR reduces R alignment drift causing RV fluctuations
+        self.d_rect = cmath.rect(self.d_polar.real, self.d_polar.imag)
+        self.v_polar = (1 - vp_k) * self.v_polar + vp_k * v_polar
+        self.v_rect = (1 - vr_k) * self.v_rect + vr_k * v_rect
 
     def trend_iter(self, n = 10, dt = 20, polar_weight = 0.5):
         d_polar = self.d_polar
