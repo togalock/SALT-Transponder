@@ -72,6 +72,43 @@ def LineX(t: turtle.Turtle, iterator: ty.Iterator[tuple[int, int]]):
         t.goto(x, y)
 
 
+def LineC(t: turtle.Turtle, x, y, r, a):
+    Move(t, x, y)
+    t.seth(a)
+    t.fd(r)
+
+
+def DashedLineX(t: turtle.Turtle,
+                iterator: ty.Iterator[tuple[int, int]],
+                parts = 5):
+    iterator = iter(iterator) if hasattr(iterator, "__iter__") else iterator
+    fragments = parts * 2
+    Move(t, *next(iterator, (0, 0)))
+    for x, y in iterator:
+        origin_steps = ((complex(x, y) - complex(*turtle.pos())) // fragments)
+        step_x, step_y = origin_steps.real, origin_steps.imag
+        for fragment in range(fragments):
+            if fragment % 2:
+                t.down()
+            else:
+                t.up()
+            t.goto(fragment * step_x, fragment * step_y)
+
+
+def DashedLineC(t: turtle.Turtle, x, y, r, a,
+                parts = 5):
+    fragments = parts * 2
+    step_r = r / fragments
+    Move(t, x, y)
+    t.seth(a)
+    for fragment in range(fragments):
+        if fragment % 2:
+            t.down()
+        else:
+            t.up()
+        t.fd(step_r)
+
+
 def CircleC(t: turtle.Turtle, x, y, r):
     Move(t, x, y - r)
     t.seth(0)
