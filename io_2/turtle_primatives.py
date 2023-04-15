@@ -1,3 +1,4 @@
+import typing as ty
 import turtle
 import cmath
 
