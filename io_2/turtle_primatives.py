@@ -65,19 +65,16 @@ def Move(t: turtle.Turtle, x, y):
     t.down()
 
 
-def Line(t: turtle.Turtle, iterable):
-    t.up()
-    t.goto(*next(iterable, (0, 0)))
-    t.down()
-    for x, y in iterable:
+def LineX(t: turtle.Turtle, iterator: ty.Iterator[tuple[int, int]]):
+    iterator = iter(iterator) if hasattr(iterator, "__iter__") else iterator
+    Move(t, *next(iterator, (0, 0)))
+    for x, y in iterator:
         t.goto(x, y)
 
 
 def CircleC(t: turtle.Turtle, x, y, r):
-    t.up()
+    Move(t, x, y - r)
     t.seth(0)
-    t.goto(x, y - r)
-    t.down()
     t.circle(r)
 
 
@@ -96,10 +93,8 @@ def ArcC(t: turtle.Turtle, x, y, r, a1, a2, draw_r = False):
 
 
 def ArrowC(t: turtle.Turtle, x, y, r, a):
-    t.up()
+    Move(t, x, y)
     t.seth(a)
-    t.goto(x, y)
-    t.down()
     t.fd(r)
     t.left(135)
     t.fd(r // 4)
@@ -109,9 +104,7 @@ def ArrowC(t: turtle.Turtle, x, y, r, a):
     
 
 def RectX(t: turtle.Turtle, x1, y1, x2, y2):
-    t.up()
-    t.goto(x1, y1)
-    t.down()
+    Move(t, x1, y1)
     t.goto(x2, y1)
     t.goto(x2, y2)
     t.goto(x1, y2)
@@ -127,9 +120,7 @@ def RectC(t: turtle.Turtle, x, y, w, h):
 
 def DiamondX(t: turtle.Turtle, x1, y1, x2, y2):
     half_x, half_y = (x1 + x2) // 2, (y1 + y2) // 2
-    t.up()
-    t.goto(half_x, y1)
-    t.down()
+    Move(t, half_x, y1)
     t.goto(x2, half_y)
     t.goto(half_x, y2)
     t.goto(x1, half_y)
@@ -148,9 +139,7 @@ def TriUpX(t: turtle.Turtle, x1, y1, x2, y2, p_left = 0.5):
     #  1
     # 2^3
     p1_x = p_left * x2 + (1 - p_left) * x1
-    t.up()
-    t.goto(p1_x, y1)
-    t.down()
+    Move(t, p1_x, y1)
     t.goto(x1, y2)
     t.goto(x2, y2)
     t.goto(p1_x, y1)
@@ -170,9 +159,7 @@ def TriPointC(t: turtle.Turtle, x, y, r, a, p_y = 0.5):
     v2 = cmath.rect(p_y * 0.5 * r, rad(a + 90)) + complex(x, y)
     v3 = cmath.rect(p_y * 0.5 * r, rad(a - 90)) + complex(x, y)
     x1, y1, x2, y2, x3, y3 = v1.real, v1.imag, v2.real, v2.imag, v3.real, v3.imag
-    t.up()
-    t.goto(x1, y1)
-    t.down()
+    Move(t, x1, y1)
     t.goto(x2, y2)
     t.goto(x3, y3)
     t.goto(x1, y1)
