@@ -59,6 +59,9 @@ def setTimeout(f, t_ms):
 def setInterval(f, t_ms):
     return Callback(f, t_ms, True)
 
+# Affix for All Graphical Components:
+# X: Receives Origin x, y, width and height
+# C: Receives Origin x, y, radius and angle
 def Move(t: turtle.Turtle, x, y):
     t.up()
     t.goto(x, y)
