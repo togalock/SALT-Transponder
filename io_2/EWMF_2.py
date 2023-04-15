@@ -43,10 +43,15 @@ class EWMF_RadialD:
         self.v_rect = (1 - vr_k) * self.v_rect + vr_k * v_rect
 
     def trend_iter(self, n = 10, dt = 20, polar_weight = 0.5):
+        # Returns D_Polars
         d_polar = self.d_polar
         d_rect = self.d_rect
         POLAR_WEIGHT = polar_weight
-        for _ in range(1, n):
+        
+        # Include current position in prediction for continuous lines
+        yield d_polar
+        
+        for _ in range(n):
             # Combine polar and rectangular estimates to
             # balance between rotating machine and straight line paths
             d_polar = d_polar + dt * self.v_polar
