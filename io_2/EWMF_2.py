@@ -16,7 +16,17 @@ class EWMF_RadialD:
         self.v_polar = v_polar
         self.d_rect = cmath.rect(d_polar.real, d_polar.imag)
         self.v_rect = cmath.rect(v_polar.real, v_polar.imag)
-
+    
+    def __repr__(self):
+        return (
+            "[EWMF P%.2f∠%.2f° Δ%+.2f∠%+.2f° | R%.2f %.2f Δ%+.2f %+.2f]" % (
+                self.d_polar.real, deg(self.d_polar.imag),
+                self.v_polar.real, deg(self.v_polar.imag),
+                self.d_rect.real, self.d_rect.imag,
+                self.v_rect.real, self.v_rect.imag,
+            )
+        )
+    
     def push(self, d_polar, dt):
         if dt <= 0: return None
         
