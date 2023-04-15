@@ -29,7 +29,7 @@ def onclick_timer():
         
 
 def onclick_tag(x, y):
-    global tag_radial, fresh_for, can_click
+    global tag_radial, fresh_for
     if not can_click: return False
     onclick_timer()
     new_radial = complex(*cmath.polar(complex(x, y)))
@@ -38,6 +38,7 @@ def onclick_tag(x, y):
         fresh_for = 0
     else:
         tag_radial.push(new_radial, 40)
+    return None
 
 def tag_tick():
     global tag_radial, fresh_for
@@ -104,7 +105,7 @@ def draw_tag():
             trend_dot.goto(x, y)
 
         trend_dot.up()
-        trend_dot.goto(x0, y0)
+        trend_dot.goto(x0p, y0p)
         trend_dot.down()
         trend_dot.color("sea green")
         for radial in tag_radial.trend_iter(polar_weight = 0):

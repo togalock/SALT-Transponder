@@ -22,7 +22,7 @@ class LT_Loc:
         return "<LTLoc %.2f ∠%.2f (fp=%idB)>" % (self.d, deg(self.a), self.fp)
 
     @classmethod
-    def from_bytes(cls, b, start=0):
+    def from_bytes(cls, b: bytes, start=0):
         if len(b) - start < 11:
             return None
         chunk_lens = ((0, 1), (1, 2), (2, 5), (5, 7), (7, 8), (8, 9), (9, 11))
@@ -47,7 +47,7 @@ class LT_Message:
         return "<LTMsg[%i] %s>" % (self.len_, self.data[0:20])
 
     @classmethod
-    def from_bytes(cls, b, start=0):
+    def from_bytes(cls, b: bytes, start=0):
         readable_length = len(b) - start
         if readable_length < 4:
             return None
@@ -77,7 +77,7 @@ class LT_Locs:
         ) = (len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs)
 
     @classmethod
-    def from_bytes(cls, b, start=0):
+    def from_bytes(cls, b: bytes, start=0):
         readable_length = len(b) - start
         if readable_length < 21:
             return None
@@ -121,7 +121,7 @@ class LT_Messages:
             len_, role, rid, n_nodes, lt_messages,)
 
     @classmethod
-    def from_bytes(cls, b, start=0):
+    def from_bytes(cls, b: bytes, start=0):
         readable_length = len(b) - start
         if readable_length < 21:
             return None
@@ -169,6 +169,7 @@ class LTQueue:
 
         b = self.buffer
         cursor = start
+        
         res = [min(cursor, len(b)), []]
         for _ in range(MAX_FRAMES):
             res[0] = cursor
@@ -180,13 +181,14 @@ class LTQueue:
             _header, mark, len_ = map_bytes(b, chunk_lens, cursor)
             actual_len = min(len(b) - cursor, len_)
             is_complete = actual_len >= len_
-            res[1].append([is_complete, mark, cursor, actual_len, len_])
+            res[1].append((is_complete, mark, cursor, actual_len, len_))
 
             cursor += len_
 
         return res
 
     def write(self, b, time=None):
+        # Returns None, or [time, [new_frames])
         if time is None: time = now()
         if len(b) <= 0: return None
         
@@ -228,6 +230,7 @@ class LTQueue:
             self.write_times[0][1] -= 1
         
         del self.buffer[:pop_bytes]
+                                              
         return res
         
     
