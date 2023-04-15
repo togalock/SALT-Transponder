@@ -175,15 +175,16 @@ def TriPointC(t: turtle.Turtle, x, y, r, a, p_y = 0.5):
     t.goto(x1, y1)
     
 
-def TextBounds(text, w=None, h=None, font_size=10):
-    WIDTH_PER_PT, HEIGHT_PER_PT = 1.008, 1.4
+def TextBounds(text, w=None, h=None, font_size=10) -> tuple[int, int, int]:
+    WIDTH_PER_PT, HEIGHT_PER_PT = 1.1, 1.5
     if w: font_size = min(font_size, w / len(text) / WIDTH_PER_PT)
     if h: font_size = min(font_size, h / HEIGHT_PER_PT)
     return (font_size, len(text) * font_size * WIDTH_PER_PT, font_size * HEIGHT_PER_PT)
-    
+
+
 def Text(t: turtle.Turtle, text, x1, y2,
          w=None, h=None, align="center",
-         font="JetBrains Mono Thin", font_size=10, font_type="normal",):
+         font="B612 Mono", font_size=10, font_type="normal",):
     font_size = TextBounds(text, w, h, font_size)[0]
     t.up()
     t.goto(x1, y2)
