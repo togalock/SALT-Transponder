@@ -127,7 +127,7 @@ def ArcC(t: turtle.Turtle, x, y, r, a1, a2, draw_r = False):
     t.fd(r)
     t.left(90)
     t.down()
-    t.circle(r, a2 - a1)
+    t.circle(r, (a2 - a1 + 360) % 360)
     if draw_r:
         t.goto(x, y)
 
