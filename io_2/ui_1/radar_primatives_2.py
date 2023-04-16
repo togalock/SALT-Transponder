@@ -143,17 +143,34 @@ def ProximityLine(t: turtle.Turtle, rd: ewmf.EWMF_RadialD,
     tp.Text(t, proximity_text, text_origin[0], text_origin[1])
 
 
-def SafeSector(t: turtle.Turtle, a1, a2
+def SafeSector(t: turtle.Turtle, a1, a2):
+    safe_color = tp.COLORS["2"]
+    danger_color = tp.COLORS["4"]
+    
+    r = tp.px(0.35, 0)[0]
+    
+    t.color(safe_color)
+    t.begin_fill()
+    tp.ArcC(t, 0, 0, r, a1, a2, draw_r=True)
+    t.end_fill()
+    
+    t.color(danger_color)
+    t.begin_fill()
+    tp.ArcC(t, 0, 0, r, a2, a1, draw_r=True)
+    t.end_fill()
+
+
 
 # Test below
 init_screen()
 pen = new_pen()
 worker = ewmf.EWMF_RadialD(1350+2.09j, -0.0003-0.0017j)
 
-ViewLine(pen)
 Excavator(pen)
+ViewLine(pen)
 RangeCircles(pen)
 Worker(pen, worker)
 ProximityLine(pen, worker)
+SafeSector(pen, 270, 90)
 
-turtle.done()
+turtle.update()
