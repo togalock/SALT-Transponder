@@ -14,8 +14,6 @@ sint = lambda unsigned, bits = 8: (unsigned >> bits - 1) * (-1 << bits) + unsign
 rad = lambda d: 0.0174533 * d
 deg = lambda r: 57.29578 * r
 
-MCS = 100000
-
 def range_chunks(*chunks):
     res, start = [], 0
     for chunk in chunks:
@@ -31,15 +29,19 @@ map_bytes = lambda b, chunk_lens, start=0: map(
 
 # Units: t (us), a (rad), d (mm)
 
+# Packet
+IdentKey = tuple[int, int] # Role, RID
+
 class LT_Loc:
     def __init__(self, role: int, rid: int, d, a, fp, rx):
         # fp: First Path dB; rx: Average dB
         self.role, self.rid, self.d, self.a, self.fp, self.rx = role, rid, d, a, fp, rx
-        self.checksum = None
+        self.checksum: ty.Union[None, int] = None
+        self.ident_key: IdentKey = (role, rid)
 
     def __repr__(self):
         return "<LTLoc %.2f ∠%.2f (fp=%idB)>" % (self.d, deg(self.a), self.fp)
-
+    
     @classmethod
     def from_bytes(cls, b: bytes, start=0):
         if len(b) - start < 11:
@@ -55,12 +57,13 @@ class LT_Loc:
 
 
 class LT_Message:
-    def __init__(self, role, rid, len_, data):
+    def __init__(self, role: int, rid: int, len_, data: bytes):
         self.role, self.rid, self.len_, self.data = role, rid, len_, data
-        self.checksum = None
+        self.checksum: ty.Union[None, int] = None
+        self.ident_key: IdentKey = (role, rid)
 
     def __repr__(self):
-        return "<LTMsg[%i] %s>" % (self.len_, self.data)
+        return "<LTMsg[%i] %r>" % (self.len_, self.data)
 
     @classmethod
     def from_bytes(cls, b: bytes, start=0):
@@ -78,19 +81,18 @@ class LT_Message:
 
         return res
 
+Packet = ty.Union[LT_Loc, LT_Message]
 
+# PacketBox
 class LT_Locs:
-    def __init__(self, len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs):
-        (
-            self.len_,
-            self.role,
-            self.rid,
-            self.local_time,
-            self.sys_time,
-            self.vcc,
-            self.n_nodes,
-            self.lt_locs,
+    def __init__(self, len_, role: int, rid: int,
+                 local_time, sys_time, vcc, n_nodes, lt_locs: list[LT_Loc]):
+        (self.len_, self.role, self.rid,
+         self.local_time, self.sys_time,
+         self.vcc,
+         self.n_nodes, self.locs,
         ) = (len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs)
+        self.ident_key: IdentKey = (self.role, self.rid)
 
     @classmethod
     def from_bytes(cls, b: bytes, start=0):
@@ -107,7 +109,7 @@ class LT_Locs:
         if readable_length < len_:
             return None
 
-        lt_locs = []
+        locs = []
         CHECKSUM_ENABLED = True
         checksum = sum(b[start : start + 21]) & ((1 << 8) - 1)
 
@@ -116,7 +118,7 @@ class LT_Locs:
             if not lt_loc:
                 return lt_loc
             else:
-                lt_locs.append(lt_loc)
+                locs.append(lt_loc)
 
             if CHECKSUM_ENABLED:
                 checksum = (checksum + lt_loc.checksum) & ((1 << 8) - 1)
@@ -125,13 +127,15 @@ class LT_Locs:
             if b[start + len_ - 1] != checksum:
                 return False
 
-        return cls(len_, role, rid, local_time, sys_time, vcc, n_nodes, lt_locs)
+        return cls(len_, role, rid, local_time, sys_time, vcc, n_nodes, locs)
 
 
 class LT_Messages:
-    def __init__(self, len_, role, rid, n_nodes, lt_messages):
-        self.len_, self.role, self.rid, self.n_nodes, self.lt_messages = (
-            len_, role, rid, n_nodes, lt_messages,)
+    def __init__(self, len_,
+                 role: int, rid: int, n_nodes, lt_messages: list[LT_Message]):
+        (self.len_, self.role, self.rid, self.n_nodes, self.messages) = (
+            len_, role, rid, n_nodes, lt_messages)
+        self.ident_key: IdentKey = (role, rid)
 
     @classmethod
     def from_bytes(cls, b: bytes, start=0):
@@ -168,6 +172,12 @@ class LT_Messages:
 
         return cls(len_, role, rid, n_nodes, lt_messages)
 
+PacketBox = ty.Union[LT_Locs, LT_Messages]
+
+# Frame Class: [time, PacketBox]
+Frame = tuple[int, Packet]
+FrameBox = tuple[int, PacketBox]
+
 class FrameRanges(ty.TypedDict):
     is_complete: bool
     mark: int
@@ -175,25 +185,24 @@ class FrameRanges(ty.TypedDict):
     actual_len: int
     stated_len: int
 
-
-class LTQueue:
+class LT_Queue:
     def __init__(self, init_bytes=b""):
         self.buffer = bytearray(init_bytes)
-        self.write_times: list[int, int] = []  # [[Time, Frames Read]]
+        self.write_times: list[ty.Annotated[list[int], 2]] = []  # [[Time, FrameBox Count]]
 
-    def get_frame_ranges(self, n=10, start=0) -> tuple[int, dict[FrameRanges]]:
+    def get_frame_ranges(self, n=10, start=0) -> tuple[int, list[FrameRanges]]:
         # Returns [Scan End Index, [
         # {is_complete, mark, start (cursor), actual_len, stated_len}, ...]]
         MAX_LOOKAHEAD = 21
-        MAX_FRAMES = n
+        MAX_FrameBox = n
 
         b = self.buffer
         cursor = start
         
         bytes_scanned = min(cursor, len(b))
-        frame_ranges = []
+        frame_ranges: list[FrameRanges] = []
         
-        for _ in range(MAX_FRAMES):
+        for _ in range(MAX_FrameBox):
             bytes_scanned = cursor
             cursor = b.find(0x55, cursor, cursor + MAX_LOOKAHEAD)
             if cursor < 0 or len(b) - cursor < 4:
@@ -215,24 +224,24 @@ class LTQueue:
 
         return (bytes_scanned, frame_ranges)
 
-    def write(self, b, time=None) -> ty.Union[None, tuple[int, int]]:
-        # Returns None, or [time, new_frames_count]
-        if time is None: time = now()
+    def write(self, b, ref_time=None) -> ty.Optional[ty.Annotated[list[int], 2]]:
+        # Returns None, or [time, frames_added]
+        if ref_time is None: ref_time = now()
         if len(b) <= 0: return None
         
         old_b_ends = self.get_frame_ranges()[0]
 
         self.buffer.extend(b)
 
-        frames_added = len(self.get_frame_ranges(start=old_b_ends)[1])
-        if frames_added <= 0: return None
+        FrameBox_added = len(self.get_frame_ranges(start=old_b_ends)[1])
+        if FrameBox_added <= 0: return None
         
-        res = [time, frames_added]
+        res = [ref_time, FrameBox_added]
         self.write_times.append(res)
 
         return res
     
-    def pops(self, n=10):
+    def pops(self, n=10) -> list[FrameBox]:
         _, frame_ranges = self.get_frame_ranges(n = n)
         res = []
         pop_bytes = max(frame_range["start"] + frame_range["actual_len"] \
@@ -247,15 +256,13 @@ class LTQueue:
                 break
             
             timestamp = self.write_times[0][0]
-            
-            if not frame_range["is_complete"]:
-                res.append([timestamp, None])
-            elif frame_range["mark"] == 0x02:
-                res.append([timestamp, LT_Messages.from_bytes(self.buffer, start=frame_range["start"])])
+
+            if frame_range["mark"] == 0x02:
+                res.append((timestamp, LT_Messages.from_bytes(self.buffer, start=frame_range["start"])))
             elif frame_range["mark"] == 0x07:
-                res.append([timestamp, LT_Locs.from_bytes(self.buffer, start=frame_range["start"])])
+                res.append((timestamp, LT_Locs.from_bytes(self.buffer, start=frame_range["start"])))
             else:
-                res.append([timestamp, False])
+                res.append((timestamp, False))
 
             self.write_times[0][1] -= 1
         
@@ -264,18 +271,124 @@ class LTQueue:
         return res
         
     
-    def pops_after(self, time=0, n=10):
-        drop_frames = sum(write_time[1] if write_time[0] < time else 0 for write_time in self.write_times)
-        drop_bytes, _ = self.get_frame_ranges(n = drop_frames)
-        self.write_times = [write_time for write_time in self.write_times if write_time[0] >= time]
+    def pops_after(self, ref_time=0, n=10) -> list[FrameBox]:
+        drop_FrameBox = sum(write_time[1] if write_time[0] < ref_time else 0 for write_time in self.write_times)
+        drop_bytes, _ = self.get_frame_ranges(n = drop_FrameBox)
+        self.write_times = [write_time for write_time in self.write_times if write_time[0] >= ref_time]
         del self.buffer[:drop_bytes]
         
         return self.pops(n = n)
-    
-    
 
-def test():
-    lt_queue = LTQueue()
+# Node Classes
+class LT_Node:
+    def __init__(self, ident_key: IdentKey,
+                 last_seen = 0,
+                 locs: ty.Optional[list[Frame]] = None,
+                 messages: ty.Optional[list[Frame]] = None,
+                 frame_boxes: ty.Optional[list[FrameBox]] = None):
+        self.ident_key = ident_key
+        self.last_seen = last_seen
+        self.locs: list[Frame] = locs if locs else []
+        self.messages: list[Frame] = messages if messages else []
+        # self.frame_boxes: list[FrameBox] = frame_boxes if frame_boxes else []
+        self.last_seen = 0
+    
+    def __repr__(self):
+        return "[LTNode] %s %s %r" % (self.ident_key, len(self.locs), self.locs[-2:-1:])
+    
+    def push_frame(self, frame: Frame):
+        ref_time, content = frame
+        if not content:
+            return None
+        
+        self.last_seen = max(self.last_seen, ref_time)
+
+        if isinstance(content, LT_Loc):
+            if content.ident_key == self.ident_key:
+                self.locs.append(frame)
+        elif isinstance(content, LT_Message):
+            if content.ident_key == self.ident_key:
+                self.messages.append(frame)
+        else:
+            pass
+        
+        return self
+    
+    def push_framebox(self, framebox: FrameBox):
+        ref_time, content = framebox
+        if not content:
+            return
+        
+        self.last_seen = max(self.last_seen, ref_time)
+        
+        return self
+
+class LT_NodeCache:
+    def __init__(self, timeout = 10000000, system_time = None,
+                 nodes: ty.Optional[dict[IdentKey, LT_Node]] = None):
+        self.nodes: dict[IdentKey, LT_Node] = nodes if nodes else dict()
+        self.system_time = system_time if system_time else 0
+        self.timeout = timeout
+    
+    def push_frame(self, frame: Frame):
+        ref_time, content = frame
+        if not content:
+            return None
+        
+        self.system_time = max(self.system_time, ref_time)
+        
+        if content.ident_key not in self.nodes:
+            self.nodes[content.ident_key] = LT_Node(content.ident_key)      
+        self.nodes[content.ident_key].push_frame(frame)
+        
+        return self.nodes[content.ident_key]
+    
+    def push_framebox(self, framebox: FrameBox):
+        ref_time, content = framebox
+        if not content:
+            return None
+        
+        self.system_time = max(self.system_time, ref_time)
+        
+        """
+        if content.ident_key not in self.nodes:
+            self.nodes[content.ident_key] = LT_Node(content.ident_key)
+        issuing_node = self.nodes[content.ident_key].push_framebox(framebox)
+        """
+        issuing_node = None
+        
+        affected_nodes = []
+        if isinstance(content, LT_Locs):
+            for loc in content.locs:
+                node_modified = self.push_frame((ref_time, loc))
+                affected_nodes.append(node_modified)
+        elif isinstance(content, LT_Messages):
+            for message in content.messages:
+                node_modified = self.push_frame((ref_time, message))
+                affected_nodes.append(node_modified)
+        else:
+            pass
+        
+        return [issuing_node, affected_nodes]
+    
+    def tick(self, ref_time = None):
+        self.system_time = ref_time if ref_time else now()
+    
+    def get_expired_nodes(self):
+        res = []
+        for ident_key, node in self.nodes.items():
+            if self.system_time - node.last_seen > self.timeout:
+                res.append(ident_key)
+        return res
+    
+    def clean(self):
+        expired_nodes = self.get_expired_nodes()
+        for ident_key in expired_nodes:
+            del self.nodes[ident_key]
+
+def case_test():
+    lt_queue = LT_Queue()
+    lt_nodes = LT_NodeCache()
 
     # UM Example 6.1.3.1
     SAMPLE_LOC_RAW = b"\x55\x07\x42\x00\x02\x00\xbe\x73\x02\x00\x00\x00\x00\x00\x00\x00\xf1\x06\xef\x12\x04\x01\x00\xff\x02\x00\x22\x0b\xa3\x9f\x9e\x00\x01\x01\x02\x03\x00\xad\x00\xa4\x9f\x00\x00\x01\x02\xec\x03\x00\xcb\x03\xa5\xa0\x00\x00\x01\x03\x88\x05\x00\x99\xec\xa3\xa0\x00\x00\x33"
@@ -286,16 +399,28 @@ def test():
 
     lt_queue.write(SAMPLE_LOC_RAW)
     lt_queue.write(SAMPLE_MSG_RAW)
-    loc_decoded = lt_queue.pops(1)
-    msg_decoded = lt_queue.pops(1)
-    print(loc_decoded[0][0], loc_decoded[0][1].__dict__)
-    print(msg_decoded[0][0], msg_decoded[0][1].__dict__)
     
-    lt_queue.write(SAMPLE_LOC_RAW_1)
-    print(lt_queue.pops_after(0))
-    lt_queue.write(SAMPLE_LOC_RAW_2)
-    print(lt_queue.pops_after(0))
+    for _ in range(4):
+        lt_nodes.tick()
+        for framebox in lt_queue.pops(1):
+            print(lt_nodes.push_framebox(framebox))
+    
+    return lt_nodes
 
+def device_test():
+    lt_queue = LT_Queue()
+    lt_nodes = LT_NodeCache()
+    
+    from lt_serial import get_serial_interactive as gsi
+    s = gsi()
+    while True:
+        lt_queue.write(s.read(500), now())
+        p = lt_queue.pops()
+        for framebox in p:
+            lt_nodes.push_framebox(framebox)
+        lt_nodes.clean()
+        print(lt_nodes.__dict__)
+    
 
 if __name__ == "__main__":
-    test()
+    device_test()

@@ -2,19 +2,26 @@ import turtle
 import cmath
 import EWMF_2 as ewmf
 import turtle_primatives as tp
+import functools as ff
+
+# Helper Functions
+rad = lambda d: 0.0174533 * d
+deg = lambda r: 57.29578 * r
+c_tuple = lambda c: (c.real, c.imag)
 
 # Unit: t (us), a (rad), d (mm)
-
+# Constant Definitions
 CAUTION_DIST, WARNING_DIST = 1200, 600
 SYMBOL_SIZE: tuple[float, float] = tp.px(0.05, 0.07)
 PX_PER_MM: float = tp.px(0.25, 0)[0] / WARNING_DIST # Warning Circle span 25% horizontally
 
+# Initialization
 def init_screen():
     screen = turtle.Screen()
     screen.setup(800, 600)
     screen.title("SALT Base 4")
     screen.bgcolor(tp.COLORS["g1"])
-    screen.tracer(1, 1)
+    screen.tracer(0, 0)
 
 def new_pen() -> turtle.Turtle:
     t = turtle.Turtle()
@@ -22,7 +29,7 @@ def new_pen() -> turtle.Turtle:
     t.hideturtle()
     return t
 
-
+# Graphic Elements
 def Excavator(t: turtle.Turtle):
     exca_size = tp.px(0.09, 0.15)
     wheel_size = (exca_size[0] // 4, exca_size[1] * 1.2)
@@ -90,29 +97,14 @@ def ViewLine(t: turtle.Turtle):
 
 def Worker(t: turtle.Turtle, rd: ewmf.EWMF_RadialD,
                   element_color = tp.COLORS["f"],
-                  is_selected = False, is_called = False): 
+                  is_selected = False, is_called = False):
     select_color = tp.COLORS["b"]
     call_color = tp.COLORS["f"]
     
     point_size = tp.px(0.02, 0)[0]
     call_size = 3 * point_size
-    tri_size = tp.px(0.05, 0)[0]
     
     origin: complex = PX_PER_MM * rd.d_rect
-    
-    trend_coords = [tp.c_tuple(PX_PER_MM * cmath.rect(d_polar.real, d_polar.imag)) for d_polar in rd.trend_iter()]
-    
-    # Trend Line
-    t.width(1)
-    t.color(element_color)
-    tp.LineX(t, trend_coords)
-    
-    # Trend Triangle
-    t.width(0)
-    t.color(element_color)
-    t.begin_fill()
-    tp.TriPointC(t, trend_coords[0][0], trend_coords[0][1], tri_size, tp.deg(rd.v_polar.imag))
-    t.end_fill()
     
     # Call Rectangle
     if is_called:
@@ -143,18 +135,18 @@ def ProximityLine(t: turtle.Turtle, rd: ewmf.EWMF_RadialD,
     tp.Text(t, proximity_text, text_origin[0], text_origin[1])
 
 
-def SafeSector(t: turtle.Turtle, a1, a2):
+def DangerSector(t: turtle.Turtle, a1, a2):
     safe_color = tp.COLORS["2"]
     danger_color = tp.COLORS["4"]
     
     r = tp.px(0.35, 0)[0]
     
-    t.color(safe_color)
+    t.color(danger_color)
     t.begin_fill()
     tp.ArcC(t, 0, 0, r, a1, a2, draw_r=True)
     t.end_fill()
     
-    t.color(danger_color)
+    t.color(safe_color)
     t.begin_fill()
     tp.ArcC(t, 0, 0, r, a2, a1, draw_r=True)
     t.end_fill()
@@ -175,17 +167,36 @@ def StopBox(t: turtle.Turtle, x, y):
     tp.Text(t, stop_text, x, y - text_bound[1] // 2, font_size=20)
 
 
-# Test below
-init_screen()
-pen = new_pen()
-worker = ewmf.EWMF_RadialD(1350+2.09j, -0.0003-0.0017j)
-
-SafeSector(pen, 270, 90)
-RangeCircles(pen)
-StopBox(pen, 0, 0)
-Worker(pen, worker)
-ViewLine(pen)
-ProximityLine(pen, worker)
-Excavator(pen)
-
-turtle.update()
+# Logic Elements
+def get_risk_meta(rd: ewmf.EWMF_RadialD):
+    trend_iter = rd.trend_iter(10, 20000, 0.5)
+    trend_polars = [d_polar for d_polar in trend_iter]
+    trend_bearings = [deg(d_polar.imag) for d_polar in trend_polars]
+    trend_radiuses = [d_polar.real for d_polar in trend_polars]
+    
+    trend_r_1s = min(trend_radiuses[:5])
+    trend_r_2s = min(trend_radiuses)
+    trend_sector = (min(trend_bearings) - 30, max(trend_bearings) + 30)
+    
+    risk_level = 0
+    if trend_r_1s <= WARNING_DIST or rd.d_polar.real <= WARNING_DIST:
+        risk_level = 7
+        
+    elif trend_r_1s <= CAUTION_DIST:
+        risk_level = 3
+        
+    elif rd.d_polar.real <= CAUTION_DIST:
+        risk_level = 2
+    
+    else:
+        pass
+    
+    res = {
+        "trend_polars": trend_polars,
+        "trend_radiuses": trend_radiuses,
+        "trend_bearings": trend_bearings,
+        "trend_sector": trend_sector,
+        "risk_level": risk_level,
+    }
+    
+    return res

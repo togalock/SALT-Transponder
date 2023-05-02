@@ -4,10 +4,10 @@ import cmath
 
 rad = lambda d: 0.0174533 * d
 deg = lambda r: 57.29578 * r
+c_tuple = lambda c: (c.real, c.imag)
 px = lambda w, h: (w * turtle.window_width() // 2, h * turtle.window_height() // 2)
 hpx = lambda h: h * turtle.window_height() // 2
 wpx = lambda w: w * turtle.window_width() // 2
-c_tuple = lambda c: (c.real, c.imag)
 
 # See Minecraft Color Codes:
 # [a-f] = [Green, Cyan, Red, Magenta, Yellow, White]

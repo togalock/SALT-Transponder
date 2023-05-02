@@ -5,7 +5,7 @@ deg = lambda r: 57.29578 * r
 vdot = lambda a, b: complex(a.real * b.real, b.imag * b.imag)
 
 class EWMF_RadialD:
-    ALPHA_DP, ALPHA_VP, ALPHA_VR = 0.1, 0.1, 0.1
+    ALPHA_DP, ALPHA_VP, ALPHA_VR = 0.1, 0.1, 0.003
     
     def __init__(self, d_polar = 0+0j, v_polar = 0+0j):
         # D_Polar: (Distance + Rad j)
