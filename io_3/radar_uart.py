@@ -45,6 +45,7 @@ async def fast_forward():
 async def draw():
     while True:
         pen.clear()
+        
         if worker is not None:
             risk_meta = rp.get_risk_meta(worker)
             element_color = (tp.COLORS["c"] if risk_meta["risk_level"] >= 7 else \
@@ -52,11 +53,13 @@ async def draw():
                              tp.COLORS["f"])
 
             if risk_meta["risk_level"] >= 7:
+                rp.BackGround(pen, tp.COLORS["g3"])
                 rp.DangerSector(pen, risk_meta["trend_sector"][0], risk_meta["trend_sector"][1])
                 rp.StopBox(pen, *tp.px(-0.5, 0.8))
-                turtle.bgcolor(tp.COLORS["g3"])
-            else:
-                turtle.bgcolor(tp.COLORS["g1"])
+            elif risk_meta["risk_level"] >= 1:
+                rp.BackGround(pen, tp.COLORS["g2"])
+        else:
+            rp.BackGround(pen, tp.COLORS["g1"])
         
         rp.Excavator(pen)
         rp.RangeCircles(pen)

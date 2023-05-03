@@ -167,6 +167,13 @@ def StopBox(t: turtle.Turtle, x, y):
     tp.Text(t, stop_text, x, y - text_bound[1] // 2, font_size=20)
 
 
+def BackGround(t: turtle.Turtle, color):
+    t.color(color)
+    t.begin_fill()
+    tp.RectX(t, *tp.px(-1, 1), *tp.px(1, -1))
+    t.end_fill()
+
+
 # Logic Elements
 def get_risk_meta(rd: ewmf.EWMF_RadialD):
     trend_iter = rd.trend_iter(10, 20000, 0.5)
