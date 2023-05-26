@@ -1,8 +1,11 @@
+import typing as ty
 import cmath
 
 rad = lambda d: 0.0174533 * d
 deg = lambda r: 57.29578 * r
 vdot = lambda a, b: complex(a.real * b.real, b.imag * b.imag)
+
+# Units: t (ms), a (rad), d (mm)
 
 class EWMF_RadialD:
     ALPHA_DP, ALPHA_VP, ALPHA_VR = 0.1, 0.1, 0.003
@@ -10,10 +13,10 @@ class EWMF_RadialD:
     def __init__(self, d_polar = 0+0j, v_polar = 0+0j):
         # D_Polar: (Distance + Rad j)
         # D_Rect: (X + Y j)
-        self.d_polar = d_polar
-        self.v_polar = v_polar
-        self.d_rect = cmath.rect(d_polar.real, d_polar.imag)
-        self.v_rect = cmath.rect(v_polar.real, v_polar.imag)
+        self.d_polar: complex = d_polar
+        self.v_polar: complex = v_polar
+        self.d_rect: complex = cmath.rect(d_polar.real, d_polar.imag)
+        self.v_rect: complex = cmath.rect(v_polar.real, v_polar.imag)
     
     def __repr__(self):
         return (
@@ -26,7 +29,8 @@ class EWMF_RadialD:
         )
     
     def push(self, d_polar, dt):
-        if dt <= 0: return
+        if dt <= 0:
+            return False
 
         dp_k = self.ALPHA_DP
         vp_k = self.ALPHA_VP
@@ -41,8 +45,12 @@ class EWMF_RadialD:
         self.d_rect = cmath.rect(self.d_polar.real, self.d_polar.imag)
         self.v_polar = (1 - vp_k) * self.v_polar + vp_k * v_polar
         self.v_rect = (1 - vr_k) * self.v_rect + vr_k * v_rect
+        
+        print(self.v_polar)
+        
+        return (self.d_polar, self.d_rect, self.v_polar, self.v_rect)
 
-    def trend_iter(self, n = 10, dt = 20, polar_weight = 0.5):
+    def trend_iter(self, n = 5, dt = 100, polar_weight = 0.5) -> ty.Iterator[complex]:
         # Returns D_Polars
         d_polar = self.d_polar
         d_rect = self.d_rect

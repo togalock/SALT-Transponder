@@ -3,7 +3,7 @@ import functools as ff
 import time
 
 # Uses ns as multiple is faster than divide
-now = lambda: int(0.001 * time.time_ns())
+now = lambda: int(0.000001 * time.time_ns())
 
 uint = ff.partial(int.from_bytes, byteorder="little", signed=False)
 # From uint to int,
@@ -27,7 +27,7 @@ map_bytes = lambda b, chunk_lens, start=0: map(
     lambda chunk: uint(b[start + chunk[0] : start + chunk[1]]), chunk_lens
 )
 
-# Units: t (us), a (rad), d (mm)
+# Units: t (ms), a (rad), d (mm)
 
 # Packet
 IdentKey = tuple[int, int] # Role, RID
@@ -324,7 +324,7 @@ class LT_Node:
         return self
 
 class LT_NodeCache:
-    def __init__(self, timeout = 10000000, system_time = None,
+    def __init__(self, timeout = 10000, system_time = None,
                  nodes: ty.Optional[dict[IdentKey, LT_Node]] = None):
         self.nodes: dict[IdentKey, LT_Node] = nodes if nodes else dict()
         self.system_time = system_time if system_time else 0

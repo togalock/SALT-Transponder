@@ -9,6 +9,10 @@ px = lambda w, h: (w * turtle.window_width() // 2, h * turtle.window_height() //
 hpx = lambda h: h * turtle.window_height() // 2
 wpx = lambda w: w * turtle.window_width() // 2
 
+def CoordXC(x, y, r, a) -> tuple[float, float]:
+    new_origin = complex(x, y) + cmath.rect(r, rad(a))
+    return (new_origin.real, new_origin.imag)
+
 # See Minecraft Color Codes:
 # [a-f] = [Green, Cyan, Red, Magenta, Yellow, White]
 # [g1-g3] = Ground Shades, Lightest -> Darkest
@@ -22,43 +26,6 @@ COLORS = {
     "g1": "#CC9933", "g2": "#996600", "g3": "#660000",
     }
 
-class Callback:
-    # This class prevents RecursionError by
-    # inhibiting Interval Callbacks from scheduling itself
-    # before it has run at least once.
-    def __init__(self, f, t_ms, is_interval = False, start_now = True):
-        self.f, self.t_ms = f, t_ms
-        self.is_interval = is_interval
-        self.has_run = False
-        self.is_active = True
-        if start_now:
-            turtle.ontimer(self, self.t_ms)
-
-    def __call__(self):
-        if not self.is_active: return False
-        if not self.has_run:
-            res = self.f()
-            self.has_run = True
-        if self.is_interval and self.has_run:
-            turtle.ontimer(self, self.t_ms)
-        return res
-    
-    def start(self):
-        if not self.is_interval:
-            self.has_run = False
-        self.is_active = True
-    
-    def stop(self):
-        self.is_active = False
-
-# Functions remains for compatibility purposes
-# To be Deprecated
-def setTimeout(f, t_ms):
-    return Callback(f, t_ms)
-
-def setInterval(f, t_ms):
-    return Callback(f, t_ms, True)
-
 # Affix for All Graphical Components:
 # X: Receives Origin x, y, width and height
 # C: Receives Origin x, y, radius and angle
@@ -66,7 +33,6 @@ def Move(t: turtle.Turtle, x, y):
     t.up()
     t.goto(x, y)
     t.down()
-
 
 def LineX(t: turtle.Turtle, iterator: ty.Iterator[tuple[int, int]]):
     iterator = iter(iterator) if hasattr(iterator, "__iter__") else iterator
@@ -206,7 +172,7 @@ def TriPointC(t: turtle.Turtle, x, y, r, a, p_y = 0.5):
     
 
 def TextBounds(text, w=None, h=None, font_size=10) -> tuple[int, tuple[int, int]]:
-    WIDTH_PER_PT, HEIGHT_PER_PT = 1.1, 1.5
+    WIDTH_PER_PT, HEIGHT_PER_PT = 1.1, 1.5 # Measured with font "B612 Mono"
     if w: font_size = min(font_size, w / len(text) / WIDTH_PER_PT)
     if h: font_size = min(font_size, h / HEIGHT_PER_PT)
     return (font_size, (len(text) * font_size * WIDTH_PER_PT, font_size * HEIGHT_PER_PT))

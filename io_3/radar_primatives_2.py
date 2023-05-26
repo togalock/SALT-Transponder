@@ -2,17 +2,16 @@ import turtle
 import cmath
 import EWMF_2 as ewmf
 import turtle_primatives as tp
-import functools as ff
 
 # Helper Functions
 rad = lambda d: 0.0174533 * d
 deg = lambda r: 57.29578 * r
 c_tuple = lambda c: (c.real, c.imag)
 
-# Unit: t (us), a (rad), d (mm)
+# Unit: t (ms), a (rad), d (mm)
 # Constant Definitions
 CAUTION_DIST, WARNING_DIST = 1200, 600
-SYMBOL_SIZE: tuple[float, float] = tp.px(0.05, 0.07)
+SYMBOL_SIZE: float = min(tp.px(0.02, 0.02))
 PX_PER_MM: float = tp.px(0.25, 0)[0] / WARNING_DIST # Warning Circle span 25% horizontally
 
 # Initialization
@@ -30,6 +29,12 @@ def new_pen() -> turtle.Turtle:
     return t
 
 # Graphic Elements
+def BackGround(t: turtle.Turtle, color):
+    t.color(color)
+    t.begin_fill()
+    tp.RectX(t, *tp.px(-1, 1), *tp.px(1, -1))
+    t.end_fill()
+
 def Excavator(t: turtle.Turtle):
     exca_size = tp.px(0.09, 0.15)
     wheel_size = (exca_size[0] // 4, exca_size[1] * 1.2)
@@ -101,7 +106,7 @@ def Worker(t: turtle.Turtle, rd: ewmf.EWMF_RadialD,
     select_color = tp.COLORS["b"]
     call_color = tp.COLORS["f"]
     
-    point_size = tp.px(0.02, 0)[0]
+    point_size = SYMBOL_SIZE
     call_size = 3 * point_size
     
     origin: complex = PX_PER_MM * rd.d_rect
@@ -119,6 +124,21 @@ def Worker(t: turtle.Turtle, rd: ewmf.EWMF_RadialD,
     tp.CircleC(t, origin.real, origin.imag, point_size)
     t.end_fill()
 
+def TrendLine(t: turtle.Turtle, rd: ewmf.EWMF_RadialD,
+              width = 1, element_color = tp.COLORS["f"]):
+    t.width(width)
+    t.color(element_color)
+    
+    origin: complex = rd.d_rect * PX_PER_MM
+    
+    trend_heading = deg(cmath.polar(rd.v_rect)[1])
+    trend_origin = tp.CoordXC(origin.real, origin.imag, SYMBOL_SIZE * 1.1, trend_heading)
+    tp.TriPointC(t, trend_origin[0], trend_origin[1], SYMBOL_SIZE, trend_heading)
+    
+    trend_points = (
+        c_tuple(cmath.rect(trend_rd.real, trend_rd.imag) * PX_PER_MM)
+        for trend_rd in rd.trend_iter())
+    tp.LineX(t, trend_points)
 
 def ProximityLine(t: turtle.Turtle, rd: ewmf.EWMF_RadialD,
                   element_color = tp.COLORS["e"]):
@@ -166,17 +186,9 @@ def StopBox(t: turtle.Turtle, x, y):
     t.color(text_color)
     tp.Text(t, stop_text, x, y - text_bound[1] // 2, font_size=20)
 
-
-def BackGround(t: turtle.Turtle, color):
-    t.color(color)
-    t.begin_fill()
-    tp.RectX(t, *tp.px(-1, 1), *tp.px(1, -1))
-    t.end_fill()
-
-
 # Logic Elements
 def get_risk_meta(rd: ewmf.EWMF_RadialD):
-    trend_iter = rd.trend_iter(10, 20000, 0.5)
+    trend_iter = rd.trend_iter()
     trend_polars = [d_polar for d_polar in trend_iter]
     trend_bearings = [deg(d_polar.imag) for d_polar in trend_polars]
     trend_radiuses = [d_polar.real for d_polar in trend_polars]
