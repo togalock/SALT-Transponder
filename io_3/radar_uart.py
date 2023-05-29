@@ -74,9 +74,15 @@ async def draw():
             tp.LineX(pen, trend_coords)
 
             # Also Quick Fix for the Arrow
-            tangent_a = cmath.polar(trend_d_rects[1] - trend_d_rects[0])[1]
-            tp.ArrowC(pen, worker.d_rect.real * rp.PX_PER_MM, worker.d_rect.imag * rp.PX_PER_MM,
-                      tp.wpx(0.1), tp.deg(tangent_a))
+            tri_a = tp.deg(cmath.polar(trend_d_rects[1] - trend_d_rects[0])[1])
+            tri_origin = tp.CoordXC(
+                worker.d_rect.real * rp.PX_PER_MM,
+                worker.d_rect.imag * rp.PX_PER_MM,
+                tp.wpx(0.1), tri_a)
+            tp.TriPointC(pen,
+                         worker.d_rect.real * rp.PX_PER_MM,
+                         worker.d_rect.imag * rp.PX_PER_MM,
+                         tp.wpx(0.05), tri_a)
             
         rp.ViewLine(pen)
         
