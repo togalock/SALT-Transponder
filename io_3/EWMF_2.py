@@ -46,8 +46,6 @@ class EWMF_RadialD:
         self.v_polar = (1 - vp_k) * self.v_polar + vp_k * v_polar
         self.v_rect = (1 - vr_k) * self.v_rect + vr_k * v_rect
         
-        print(self.v_polar)
-        
         return (self.d_polar, self.d_rect, self.v_polar, self.v_rect)
 
     def trend_iter(self, n = 5, dt = 100, polar_weight = 0.5) -> ty.Iterator[complex]:
