@@ -185,37 +185,3 @@ def StopBox(t: turtle.Turtle, x, y):
     
     t.color(text_color)
     tp.Text(t, stop_text, x, y - text_bound[1] // 2, font_size=20)
-
-# Logic Elements
-def get_risk_meta(rd: ewmf.EWMF_RadialD):
-    trend_iter = rd.trend_iter()
-    trend_polars = [d_polar for d_polar in trend_iter]
-    trend_bearings = [deg(d_polar.imag) for d_polar in trend_polars]
-    trend_radiuses = [d_polar.real for d_polar in trend_polars]
-    
-    trend_r_1s = min(trend_radiuses[:5])
-    trend_r_2s = min(trend_radiuses)
-    trend_sector = (min(trend_bearings) - 30, max(trend_bearings) + 30)
-    
-    risk_level = 0
-    if trend_r_1s <= WARNING_DIST or rd.d_polar.real <= WARNING_DIST:
-        risk_level = 7
-        
-    elif trend_r_1s <= CAUTION_DIST:
-        risk_level = 3
-        
-    elif rd.d_polar.real <= CAUTION_DIST:
-        risk_level = 2
-    
-    else:
-        pass
-    
-    res = {
-        "trend_polars": trend_polars,
-        "trend_radiuses": trend_radiuses,
-        "trend_bearings": trend_bearings,
-        "trend_sector": trend_sector,
-        "risk_level": risk_level,
-    }
-    
-    return res

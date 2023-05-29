@@ -24,7 +24,7 @@ def get_serial_interactive():
         _read = dummy_device.read
         def read_with_timeout(size = -1):
             time.sleep(timeout)
-            return _read(min(baudrate, size))
+            return _read(baudrate)
         dummy_device.read = read_with_timeout
         
         return dummy_device

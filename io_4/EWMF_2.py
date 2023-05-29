@@ -1,37 +1,45 @@
-import typing as ty
 import cmath
+import time
 
 rad = lambda d: 0.0174533 * d
 deg = lambda r: 57.29578 * r
 vdot = lambda a, b: complex(a.real * b.real, b.imag * b.imag)
+
+now = lambda: int(0.000001 * time.time_ns())
 
 # Units: t (ms), a (rad), d (mm)
 
 class EWMF_RadialD:
     ALPHA_DP, ALPHA_VP, ALPHA_VR = 0.1, 0.1, 0.003
     
-    def __init__(self, d_polar = 0+0j, v_polar = 0+0j):
+    def __init__(self, d_polar = 0+0j, v_polar = 0+0j, ref_time = None):
         # D_Polar: (Distance + Rad j)
         # D_Rect: (X + Y j)
         self.d_polar: complex = d_polar
         self.v_polar: complex = v_polar
         self.d_rect: complex = cmath.rect(d_polar.real, d_polar.imag)
         self.v_rect: complex = cmath.rect(v_polar.real, v_polar.imag)
+        self.ref_time: int = now() if ref_time is None else ref_time
+        
     
     def __repr__(self):
         return (
-            "[EWMF P%.2f∠%.2f° Δ%+.2f∠%+.2f° | R%.2f %.2f Δ%+.2f %+.2f]" % (
+            "<EWMF P%.2f∠%.2f° Δ%+.2f∠%+.2f° | R%.2f %.2f Δ%+.2f %+.2f | T%i>" % (
                 self.d_polar.real, deg(self.d_polar.imag),
                 self.v_polar.real, deg(self.v_polar.imag),
                 self.d_rect.real, self.d_rect.imag,
                 self.v_rect.real, self.v_rect.imag,
+                self.ref_time
             )
         )
     
-    def push(self, d_polar, dt):
-        if dt <= 0:
-            return False
+    def push(self, d_polar, dt = 0, t = None):
+        if t is not None:
+            dt = t - self.ref_time
+            self.ref_time = t
 
+        if dt <= 0: return False
+        
         dp_k = self.ALPHA_DP
         vp_k = self.ALPHA_VP
         vr_k = self.ALPHA_VR
@@ -48,14 +56,14 @@ class EWMF_RadialD:
         
         return (self.d_polar, self.d_rect, self.v_polar, self.v_rect)
 
-    def trend_iter(self, n = 5, dt = 100, polar_weight = 0.5) -> ty.Iterator[complex]:
+    def trend_iter(self, n = 5, dt = 100, polar_weight = 0.5) -> list[complex]:
         # Returns D_Polars
         d_polar = self.d_polar
         d_rect = self.d_rect
         POLAR_WEIGHT = polar_weight
         
         # Include current position in prediction for continuous lines
-        yield d_polar
+        res = [d_polar, ]
         
         for _ in range(n):
             # Combine polar and rectangular estimates to
@@ -63,4 +71,6 @@ class EWMF_RadialD:
             d_polar = d_polar + dt * self.v_polar
             d_rect = d_rect + dt * self.v_rect
             d_rect_polar = complex(*cmath.polar(d_rect))
-            yield POLAR_WEIGHT * d_polar + (1 - POLAR_WEIGHT) * d_rect_polar
+            res.append(POLAR_WEIGHT * d_polar + (1 - POLAR_WEIGHT) * d_rect_polar)
+        
+        return res
