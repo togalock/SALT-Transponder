@@ -15,6 +15,7 @@ lt_nodes = lt.LT_NodeCache()
 rp.init_screen()
 pen = rp.new_pen()
 worker, worker_time = None, None
+dead_indicator_on = False
 
 async def uart_read():
     while True:
@@ -41,6 +42,12 @@ async def fast_forward():
                 worker.push(complex(lt_loc.d, lt_loc.a + tp.rad(90)), ref_time - worker_time)
                 worker_time = ref_time
         await asyncio.sleep(0)
+
+async def dead_indicator():
+    global dead_indicator_on
+    while True:
+        dead_indicator_on = not(dead_indicator_on)
+        await asyncio.sleep(0.5)
 
 async def draw():
     while True:
@@ -89,12 +96,14 @@ async def draw():
         if worker is not None:
             if risk_meta["risk_level"] >= 3:
                 rp.ProximityLine(pen, worker, element_color)
-
+        
+        rp.StatusBar(pen, indicator=dead_indicator_on)
+        
         turtle.update()
         await asyncio.sleep(0.016)
 
 
 async def main():
-    await asyncio.gather(uart_read(), fast_forward(), draw())
+    await asyncio.gather(uart_read(), fast_forward(), dead_indicator(), draw())
 
 asyncio.run(main())

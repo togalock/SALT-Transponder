@@ -35,6 +35,24 @@ def BackGround(t: turtle.Turtle, color):
     tp.RectX(t, *tp.px(-1, 1), *tp.px(1, -1))
     t.end_fill()
 
+def StatusBar(t: turtle.Turtle, message = None, indicator = True):
+    height = tp.hpx(0.1)
+    t.color(tp.COLORS["7"])
+    
+    t.begin_fill()
+    tp.RectX(t, tp.wpx(-1), tp.hpx(-1) + height, *tp.px(1, -1))
+    t.end_fill()
+    
+    t.color(tp.COLORS["f"])
+    if message is not None:
+        tp.Text(t, message, 0, tp.hpx(-1) + height // 2)
+    
+    t.color(tp.COLORS["a"] if indicator else tp.COLORS["8"])
+    t.begin_fill()
+    tp.RectX(t, tp.wpx(0.9), tp.hpx(-1) + height, *tp.px(1, -1))
+    t.end_fill()
+    
+
 def Excavator(t: turtle.Turtle):
     exca_size = tp.px(0.09, 0.15)
     wheel_size = (exca_size[0] // 4, exca_size[1] * 1.2)

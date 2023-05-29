@@ -324,7 +324,7 @@ class LT_Node:
         return self
 
 class LT_NodeCache:
-    def __init__(self, timeout = 10000, system_time = None,
+    def __init__(self, timeout = 5000, system_time = None,
                  nodes: ty.Optional[dict[IdentKey, LT_Node]] = None):
         self.nodes: dict[IdentKey, LT_Node] = nodes if nodes else dict()
         self.system_time = system_time if system_time else 0
