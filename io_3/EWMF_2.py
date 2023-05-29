@@ -8,7 +8,7 @@ vdot = lambda a, b: complex(a.real * b.real, b.imag * b.imag)
 # Units: t (ms), a (rad), d (mm)
 
 class EWMF_RadialD:
-    ALPHA_DP, ALPHA_VP, ALPHA_VR = 0.1, 0.1, 0.003
+    ALPHA_DP, ALPHA_VP, ALPHA_VR = 0.1, 0.1, 0.001
     
     def __init__(self, d_polar = 0+0j, v_polar = 0+0j):
         # D_Polar: (Distance + Rad j)
@@ -48,7 +48,7 @@ class EWMF_RadialD:
         
         return (self.d_polar, self.d_rect, self.v_polar, self.v_rect)
 
-    def trend_iter(self, n = 5, dt = 100, polar_weight = 0.5) -> ty.Iterator[complex]:
+    def trend_iter(self, n = 5, dt = 100, polar_weight = 0.1) -> ty.Iterator[complex]:
         # Returns D_Polars
         d_polar = self.d_polar
         d_rect = self.d_rect
