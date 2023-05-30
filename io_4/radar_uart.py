@@ -9,7 +9,7 @@ import turtle_primatives as tp
 import radar_primatives_2 as rp
 
 lt_uart = get_serial_interactive()
-resp_queue = dwm.RESP_Queue()
+resp_queue = dwm.RESP_Queue2()
 
 rp.init_screen()
 pen = rp.new_pen()
@@ -18,9 +18,8 @@ async def uart_read():
     while True:
         resp_queue.push(lt_uart.read(800))
         for _ in range(50):
-            hits = resp_queue.pull()
-            if hits:
-                resp_queue.update(hits)
+            resp_queue.pull()
+            resp_queue.pull_ewmfs()
         await asyncio.sleep(0)
 
 async def draw():
