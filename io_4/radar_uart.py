@@ -19,7 +19,7 @@ async def uart_read():
         resp_queue.push(lt_uart.read(800))
         for _ in range(50):
             resp_queue.pull()
-            resp_queue.pull_ewmfs()
+        resp_queue.pull_ewmfs()
         await asyncio.sleep(0)
 
 async def draw():
