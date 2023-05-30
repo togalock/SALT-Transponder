@@ -24,7 +24,7 @@ class RESP_Hit:
             if dict_["Status"] != "Ok": return False
             addr = dict_["Addr"]
             d = dict_["D_cm"] * 10
-            a = rad(dict_["LPDoA_deg"] + 360)
+            a = rad(dict_["LPDoA_deg"])
             return cls(addr, d, a)
         except KeyError:
             return False
@@ -38,21 +38,23 @@ class RESP_Queue:
         self.ref_time: int = now() if ref_time is None else ref_time
     
     def push(self, bytes_):
-        self.buffer.extend(bytes_)
+        self.buffer.extend(bytes_.strip(b'\x00'))
     
     def pull(self):
+        self.buffer = self.buffer.strip(b'\x00')
         sep_i = self.buffer.find(b'\r\n')
         if sep_i >= 0:
             frame, self.buffer = self.buffer[:sep_i], self.buffer[sep_i + 2:]
             try:
                 dict_ = json.loads(frame)
-                res = [RESP_Hit.from_dict(hit) for hit in dict_["results"]]
+                res = [RESP_Hit.from_dict(hit)
+                       for hit in dict_["results"]]
                 return list(hit for hit in res if hit) or None
             except (KeyError, json.JSONDecodeError):
                 return False
         return None
     
-    def update(self, hits = list[RESP_Hit], ref_time = None):
+    def update(self, hits: list[RESP_Hit], ref_time = None):
         ref_time = now() if ref_time is None else ref_time
         for hit in hits:
             if hit.addr not in self.ewmfs or \
@@ -62,11 +64,10 @@ class RESP_Queue:
                     ref_time = hit.ref_time)
             else:
                 self.ewmfs[hit.addr].push(complex(hit.d, hit.a), t = ref_time)
-        
-        for addr in self.ewmfs:
-            if ref_time - self.ewmfs[addr].ref_time >= self.HIT_TIMEOUT:
-                del self.ewmfs[addr]
+
+        expired_addrs = [addr for addr in self.ewmfs \
+                         if ref_time - self.ewmfs[addr].ref_time >= self.HIT_TIMEOUT]
+        for addr in expired_addrs:
+            del self.ewmfs[addr]
         
         self.ref_time = ref_time
-
-

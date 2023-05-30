@@ -17,9 +17,10 @@ pen = rp.new_pen()
 async def uart_read():
     while True:
         resp_queue.push(lt_uart.read(800))
-        hits = resp_queue.pull()
-        if hits:
-            resp_queue.update(hits)
+        for _ in range(50):
+            hits = resp_queue.pull()
+            if hits:
+                resp_queue.update(hits)
         await asyncio.sleep(0)
 
 async def draw():

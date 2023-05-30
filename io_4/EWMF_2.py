@@ -10,7 +10,7 @@ now = lambda: int(0.000001 * time.time_ns())
 # Units: t (ms), a (rad), d (mm)
 
 class EWMF_RadialD:
-    ALPHA_DP, ALPHA_VP, ALPHA_VR = 0.1, 0.1, 0.003
+    ALPHA_DP, ALPHA_VP, ALPHA_VR = 0.05, 0.05, 0.003
     
     def __init__(self, d_polar = 0+0j, v_polar = 0+0j, ref_time = None):
         # D_Polar: (Distance + Rad j)
