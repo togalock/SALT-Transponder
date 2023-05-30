@@ -2,6 +2,11 @@ import cmath
 import turtle
 import asyncio
 
+try:
+    from playsound import playsound
+except ModuleNotFoundError:
+    playsound = lambda s, n = True: None
+
 from lt_serial import get_serial_interactive
 import lt_protocol as lt
 import EWMF_2 as ewmf
@@ -63,6 +68,7 @@ async def draw():
                 rp.BackGround(pen, tp.COLORS["g3"])
                 rp.DangerSector(pen, risk_meta["trend_sector"][0], risk_meta["trend_sector"][1])
                 rp.StopBox(pen, *tp.px(-0.5, 0.8))
+                playsound("Countdown02-5.mp3", block = False)
             elif risk_meta["risk_level"] >= 1:
                 rp.BackGround(pen, tp.COLORS["g2"])
         else:
