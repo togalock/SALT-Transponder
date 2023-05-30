@@ -74,7 +74,7 @@ class RESP_Queue2:
             if hit_chosen[1] is not None:
                 angle_offset = {1: 90, 2: 210, 3: 330}
                 actual_angle = rad((angle_offset.get(hit_chosen[0], 0) - deg(hit_chosen[1].a)) % 360)
-                hit_chosen[1].a = rad(actual_angle)
+                hit_chosen[1].a = actual_angle
                 hits[addr] = hit_chosen[1]
         
         return hits
